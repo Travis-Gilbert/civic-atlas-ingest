@@ -13,6 +13,22 @@ Architecture (per Phase 6 spec):
   3. Per-part decoder heads: one MLP per part type. Discrete fields
      get a softmax over the field's vocabulary; continuous fields
      get a regression head with Gaussian NLL.
+
+Proto field mapping for the decoder outputs (one head per part):
+  Mass         -> ReconstructionSpec.mass
+                  (form, story_count, height/width/depth)
+  Facade       -> ReconstructionSpec.facades[]
+                  (orientation, material, color, opening_grids[])
+  Roof         -> ReconstructionSpec.roof
+                  (form, material, pitch_degrees)
+  Ornament     -> ReconstructionSpec.ornaments[]
+                  (kind, location, material)
+  GroundFloor  -> ReconstructionSpec.ground_floor
+                  (use_type, storefront_type, entry_location, has_awning)
+
+Every decoded field is wrapped in a PartProvenance with
+`from_gnn_prior=true` and `gnn_version=<run_name>:<short_sha>` so the
+inspectability story remains end-to-end auditable.
   4. Loss: masked-field prediction. Mask a random subset of fields
      per record, ask the head to predict them, score against ground
      truth weighted by `coverage_quality`.

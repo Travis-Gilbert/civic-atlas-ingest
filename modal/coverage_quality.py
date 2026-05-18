@@ -5,6 +5,14 @@ with a `coverage_quality` score in [0, 1]. Phase 6 training
 weights its loss by this score so that high-confidence fields
 contribute more than guesses.
 
+This module's output is written to
+`PartProvenance.coverage_quality` (field number 5) in
+our-civic-atlas-backend/proto/civic_atlas/v1/reconstruction.proto.
+At ingest time the score is per-record (mean over populated
+fields); when the corpus tenant is read by Phase 6 training, the
+score is per-part because parts share one PartProvenance envelope
+in Codex's design.
+
 The scoring is intentionally simple and explainable. Per-record
 quality is the unweighted mean of per-field quality across the
 populated fields. Per-field quality is sourced from a small
@@ -21,10 +29,9 @@ provenance ladder (most-trustworthy at top):
   0.20  default catch-all when only a footprint is known
 
 When the same field appears in multiple sources, the highest-quality
-source wins. This is the inverse of how Phase 2's `FieldEnvelope`
-will record provenance — there each field carries its own source,
-so this module is mostly for the period before the Atlas backend
-exposes those envelopes through gRPC.
+source wins. Codex's per-part PartProvenance lives one level above
+per-field provenance; this module sets the per-part score by taking
+the mean over the part's contributing field lanes.
 """
 
 from __future__ import annotations
