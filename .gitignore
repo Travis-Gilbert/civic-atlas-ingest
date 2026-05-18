@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+*.egg
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Modal
+.modal/
+.modal_cache/
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Local-only artifacts
+data/
+fixtures-local/
+*.geojson.local
+*.gpkg
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
