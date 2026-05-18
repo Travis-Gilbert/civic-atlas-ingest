@@ -38,7 +38,7 @@ dev = [
 civic-atlas-ingest = "modal.__main__:cli"
 
 [tool.setuptools.packages.find]
-include = ["modal*"]
+include = ["modal*", "primitives*"]
 
 [tool.ruff]
 line-length = 100

@@ -1,31 +1,33 @@
 """Modal app: civic_atlas_scene_foundry.
 
 Renders a `ReconstructionSpec` into a glTF asset using one of the
-eight Blender archetypes from civic-atlas-primitives.
+eight Blender archetypes in this repo's `primitives/` subdir.
 
 Flow:
   1. Caller (outbox worker, or direct gRPC from Axum) hands the spec
      JSON, the archetype slug, and a target S3 URI.
-  2. This app spins up a Modal container with Blender 4.2 LTS, mounts
-     the civic-atlas-primitives volume (Blender files + render_spec.py),
-     and runs headless Blender against the right archetype.
-  3. Result GLB is uploaded to S3 under
+  2. This app spins up a Modal container with Blender 4.2 LTS, with
+     the `primitives/` directory bundled into the image at
+     `/root/primitives/` via `add_local_dir`.
+  3. Runs headless Blender against the right archetype's .blend file.
+  4. Result GLB is uploaded to S3 under
      s3://civic-atlas/<tenant>/assets/<spec_id>/v<version>/<content_hash>.glb.
-  4. App returns the URI + content_hash; caller writes the
+  5. App returns the URI + content_hash; caller writes the
      generated_assets row in PostGIS.
 
 Status: Phase 3 stub. The image build + Blender invocation is wired,
 but the actual archetype .blend files don't exist yet in
-civic-atlas-primitives, so a render call returns a "phase-3-stub"
-error from render_spec.py.
+`primitives/archetypes/<slug>/archetype.blend`, so a render call
+returns a "phase-3-stub" error from render_spec.py.
 
 Run:
+    cd civic-atlas-ingest
     modal deploy modal/scene_foundry.py
-    modal run modal/scene_foundry.py::render \
-        --spec-json @path/to/spec.json \
-        --archetype frame-house-with-porch \
-        --tenant flint \
-        --spec-id spec:carriage-town:2 \
+    modal run modal/scene_foundry.py::render \\
+        --spec-json @path/to/spec.json \\
+        --archetype frame-house-with-porch \\
+        --tenant flint \\
+        --spec-id spec:carriage-town:2 \\
         --spec-version 1
 
 Environment:
@@ -39,7 +41,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -47,9 +48,15 @@ from typing import Any
 
 import modal
 
-# Blender 4.2 LTS in a Debian-based image. The civic-atlas-primitives
-# repo is mounted at /opt/civic-atlas-primitives via a Modal volume,
-# populated by a separate "primitives_sync" function (TODO).
+# Blender 4.2 LTS in a Debian-based image. `primitives/` is bundled
+# into the image at /root/primitives/ via add_local_dir so the
+# scene foundry function reads the archetype .blend files directly
+# without needing a runtime git clone or separate Modal volume.
+#
+# Path expectations after image build:
+#   /root/primitives/archetypes/<slug>/archetype.blend
+#   /root/primitives/scripts/render_spec.py
+#   /root/primitives/archetypes/_hashes.json
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install(
@@ -71,13 +78,10 @@ image = (
         "protobuf>=5.27",
         "jsonschema>=4.21",
     )
+    .add_local_dir("primitives", remote_path="/root/primitives")
 )
 
 app = modal.App("civic-atlas-scene-foundry", image=image)
-
-PRIMITIVES_VOLUME = modal.Volume.from_name(
-    "civic-atlas-primitives", create_if_missing=True
-)
 
 
 @app.function(
@@ -88,7 +92,6 @@ PRIMITIVES_VOLUME = modal.Volume.from_name(
         modal.Secret.from_name("civic-atlas-scene-foundry"),
         modal.Secret.from_name("civic-atlas-aws"),
     ],
-    volumes={"/opt/civic-atlas-primitives": PRIMITIVES_VOLUME},
 )
 def render(
     spec_json: str,
@@ -104,10 +107,10 @@ def render(
         "uri": "s3://civic-atlas/<tenant>/assets/.../<hash>.glb",
         "content_hash": "sha256-...",
         "archetype": "...",
-        "archetype_hash": "sha256-...",  # from civic-atlas-primitives _hashes.json
+        "archetype_hash": "sha256-...",  # from primitives/archetypes/_hashes.json
       }
     """
-    primitives_root = Path("/opt/civic-atlas-primitives")
+    primitives_root = Path("/root/primitives")
     archetype_dir = primitives_root / "archetypes" / archetype.replace("-", "_")
     blend_file = archetype_dir / "archetype.blend"
     render_script = primitives_root / "scripts" / "render_spec.py"
@@ -115,8 +118,8 @@ def render(
     if not blend_file.exists():
         raise RuntimeError(
             f"phase-3-stub: archetype {archetype!r} has no .blend yet. "
-            f"Author it in civic-atlas-primitives and re-sync the volume. "
-            f"Expected: {blend_file}"
+            f"Author it in primitives/archetypes/{archetype.replace('-', '_')}/ "
+            f"and redeploy. Expected: {blend_file}"
         )
     if not render_script.exists():
         raise RuntimeError(f"missing render script: {render_script}")
@@ -176,26 +179,6 @@ def render(
             "archetype": archetype,
             "archetype_hash": archetype_hash,
         }
-
-
-@app.function(cpu=1, memory=2048, timeout=60 * 10)
-def primitives_sync(git_url: str = "https://github.com/Travis-Gilbert/civic-atlas-primitives.git") -> dict[str, Any]:
-    """Sync the civic-atlas-primitives repo into the mounted volume.
-
-    Called by an operator (or a periodic cron) when the primitives
-    repo updates. Clones the repo, rewrites /opt/civic-atlas-primitives,
-    commits the volume.
-    """
-    target = "/opt/civic-atlas-primitives"
-    if os.path.exists(target):
-        shutil.rmtree(target)
-    subprocess.run(["git", "clone", "--depth", "1", git_url, target], check=True)
-    PRIMITIVES_VOLUME.commit()
-    return {
-        "target": target,
-        "git_url": git_url,
-        "archetype_count": len(list(Path(target, "archetypes").iterdir())),
-    }
 
 
 @app.local_entrypoint()

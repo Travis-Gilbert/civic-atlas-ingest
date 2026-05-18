@@ -1,17 +1,19 @@
 # civic-atlas-ingest
 
-Multi-city building corpus ingestion for the Our Civic Atlas project.
+Multi-city building corpus ingestion, Phase 6 building head training,
+and Scene Foundry rendering for the Our Civic Atlas project. One repo
+because the toolchain is shared (Python + Modal + Blender) and the
+modules co-evolve.
 
-Three Modal apps pull from public sources and write
-`BuildingPresence` + `ArtifactAnchor` records into the
-`corpus` tenant in `our-civic-atlas-backend`'s PostGIS:
+## What lives here
 
-- `modal/ingest_overpass.py` — OpenStreetMap building footprints + tags
-- `modal/ingest_sanborn.py` — Mapwarper-georeferenced Sanborn sheets
-- `modal/ingest_assessor.py` — per-city assessor parcel records
-
-A `civic-atlas-validate` Rust CLI checks ingested records against
-`ReconstructionSpec` validators in the backend repo.
+| Subtree            | Purpose                                                          |
+|--------------------|------------------------------------------------------------------|
+| `modal/ingest_*`   | Phase 5: pull OSM / Sanborn / assessor data into corpus tenant   |
+| `modal/building_head_*` | Phase 6: train + serve the building head GNN                |
+| `modal/scene_foundry.py` | Phase 3: render ReconstructionSpec -> glTF via Blender     |
+| `primitives/`      | 8 Blender geometry-nodes archetypes consumed by Scene Foundry    |
+| `crates/civic-atlas-validate/` | Rust CLI checking corpus records vs ReconstructionSpec |
 
 ## Scope and non-goals
 
@@ -45,23 +47,43 @@ PostGIS (corpus schema, RLS-enforced)
 
 ```
 civic-atlas-ingest/
-├── modal/                  # Python Modal apps
-│   ├── city_targets.py     # 10 cities + bboxes, ordered priority
-│   ├── coverage_quality.py # per-record/per-field scoring
-│   ├── ingest_overpass.py
-│   ├── ingest_sanborn.py
-│   └── ingest_assessor.py
+├── modal/                       # Python Modal apps
+│   ├── city_targets.py          # 10 cities + bboxes, ordered priority
+│   ├── coverage_quality.py      # per-record/per-field scoring
+│   ├── ingest_overpass.py       # Phase 5
+│   ├── ingest_sanborn.py        # Phase 5
+│   ├── ingest_assessor.py       # Phase 5
+│   ├── building_head_train.py   # Phase 6
+│   ├── building_head_infer.py   # Phase 6
+│   ├── model_promote.py         # Phase 6 promotion CLI
+│   └── scene_foundry.py         # Phase 3 render service
+├── primitives/                  # Blender geometry-nodes archetypes
+│   ├── archetypes/
+│   │   ├── commercial_brick_two_story/
+│   │   ├── frame_house_with_porch/
+│   │   ├── factory_bay/
+│   │   ├── warehouse/
+│   │   ├── church/
+│   │   ├── school/
+│   │   ├── gas_station/
+│   │   └── mixed_use_storefront/
+│   ├── scripts/                 # render_spec.py, hash_archetypes.py, cli.py
+│   └── blender_addon/           # local-dev Blender addon
 ├── crates/
-│   └── civic-atlas-validate/  # Rust validation CLI
+│   └── civic-atlas-validate/    # Rust validation CLI
 ├── scripts/
 │   └── provision_corpus_tenant.sh
 └── docs/
-    └── multi-tenancy-invariant.md
+    ├── multi-tenancy-invariant.md
+    └── spec-to-mesh-pipeline.md  # spec -> archetype -> Blender -> glTF
 ```
 
-Python and Rust live in the same repo because the Rust validator
-reads the same `BuildingPresence` records the Python ingesters
-write. Cargo workspace + pyproject.toml coexist.
+Python, Rust, and Blender Python live in the same repo because the
+modules consume each other: scene_foundry reads `primitives/`, the
+Rust validator reads the same BuildingPresence records ingesters
+write, building_head_train consumes the corpus from ingesters.
+Co-location prevents drift; toolchain coexists via pyproject.toml,
+Cargo workspace, and Blender-addon discovery.
 
 ## Dev setup
 
