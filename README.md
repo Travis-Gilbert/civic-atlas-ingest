@@ -10,7 +10,7 @@ modules co-evolve.
 | Subtree            | Purpose                                                          |
 |--------------------|------------------------------------------------------------------|
 | `modal/ingest_*`   | Phase 5: pull OSM / Sanborn / assessor data into corpus tenant   |
-| `modal/building_head_*` | Phase 6: train + serve the building head GNN                |
+| `modal/building_head_*` | Phase 6: train + serve the civic Pairformer building head   |
 | `modal/scene_foundry.py` | Phase 3: render ReconstructionSpec -> glTF via Blender     |
 | `primitives/`      | 8 Blender geometry-nodes archetypes consumed by Scene Foundry    |
 | `crates/civic-atlas-validate/` | Rust CLI checking corpus records vs ReconstructionSpec |
@@ -53,8 +53,9 @@ civic-atlas-ingest/
 │   ├── ingest_overpass.py       # Phase 5
 │   ├── ingest_sanborn.py        # Phase 5
 │   ├── ingest_assessor.py       # Phase 5
-│   ├── building_head_train.py   # Phase 6
-│   ├── building_head_infer.py   # Phase 6
+│   ├── building_head_pairformer.py # Phase 6 model module
+│   ├── building_head_train.py   # Phase 6 training app
+│   ├── building_head_infer.py   # Phase 6 inference app
 │   ├── model_promote.py         # Phase 6 promotion CLI
 │   └── scene_foundry.py         # Phase 3 render service
 ├── primitives/                  # Blender geometry-nodes archetypes
@@ -84,6 +85,12 @@ Rust validator reads the same BuildingPresence records ingesters
 write, building_head_train consumes the corpus from ingesters.
 Co-location prevents drift; toolchain coexists via pyproject.toml,
 Cargo workspace, and Blender-addon discovery.
+
+The Phase 6 model code is local to this repo on purpose.
+`building_head_pairformer.py` ports the reusable Theseus Pairformer
+shape into a civic block-coherence model, while keeping Atlas
+training, model promotion, and tenant isolation independent from
+Theseus's epistemic graph runtime.
 
 ## Dev setup
 

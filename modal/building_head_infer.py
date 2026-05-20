@@ -12,7 +12,8 @@ this Modal endpoint. Flow:
      subgraph's node_ids.
   3. Backend POSTs the assembled tensor to this Modal endpoint.
   4. This endpoint loads the production model (or staging if flagged),
-     runs the head, decodes per-part field distributions.
+     runs the CivicPairformerBuildingHead, decodes per-part field
+     distributions.
   5. Returns a ReconstructionSpec with every populated field carrying
      `from_gnn_prior=true` and `gnn_version=<model version>`.
 

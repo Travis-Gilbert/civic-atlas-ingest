@@ -5,11 +5,13 @@ ReconstructionSpec part schema. The skeleton wires up the data
 loading + frozen-encoder access via Theseus bridge so that loop
 can land cleanly when the schema is final.
 
-Architecture (per Phase 6 spec):
+Architecture (per Phase 6 spec, updated to the civic Pairformer port):
   1. Frozen encoder: DyGFormer in Theseus, accessed via
      TheseusBridge.GetBatchSpacetimeEmbeddings. NOT retrained here.
-  2. Trainable head: 2-or-3 layer GraphSAGE over each building's
-     block subgraph (PyTorch Geometric).
+  2. Trainable head: CivicPairformerBuildingHead over each building's
+     block subgraph (PyTorch Geometric). Nodes and civic relationship
+     edges co-evolve; attention is block-local to avoid batched
+     cross-block leakage.
   3. Per-part decoder heads: one MLP per part type. Discrete fields
      get a softmax over the field's vocabulary; continuous fields
      get a regression head with Gaussian NLL.
@@ -124,7 +126,8 @@ def train(
         raise ValueError("finetune requires --warm-start <pretrain run name>")
 
     raise NotImplementedError(
-        "Phase 6 stub. Implementation lands after:\n"
+        "Phase 6 stub. Civic Pairformer model module is present; "
+        "training loop lands after:\n"
         "  - ReconstructionSpec.Part schema is final (Phase 2)\n"
         "  - GetBatchSpacetimeEmbeddings ships in Theseus bridge\n"
         "  - corpus tenant has > 50,000 BuildingPresence records\n"

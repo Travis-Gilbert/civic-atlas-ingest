@@ -39,6 +39,9 @@ def apps() -> None:
     click.echo("modal/ingest_overpass.py  -- OSM building footprints + tags")
     click.echo("modal/ingest_sanborn.py   -- Mapwarper Sanborn sheets")
     click.echo("modal/ingest_assessor.py  -- per-city assessor records")
+    click.echo("modal/building_head_train.py -- civic Pairformer training")
+    click.echo("modal/building_head_infer.py -- civic Pairformer inference")
+    click.echo("modal/scene_foundry.py -- ReconstructionSpec -> glTF rendering")
 
 
 if __name__ == "__main__":
