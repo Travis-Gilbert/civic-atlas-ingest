@@ -3,7 +3,7 @@
 When installed in Blender, this addon registers the geometry-nodes
 groups for each archetype and the Spec-modifier panel that fills
 input sockets from a spec JSON. Local-dev only; the Scene Foundry
-Modal worker calls scripts/render_spec.py directly without this
+Ray worker calls scripts/render_spec.py directly without this
 addon.
 
 Phase 3 stub: register hook is a no-op until the geometry-nodes

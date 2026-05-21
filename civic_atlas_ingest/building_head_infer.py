@@ -1,16 +1,16 @@
-"""Modal app: serve building head inference.
+"""Ray Serve deployment: serve building head inference.
 
 Status: skeleton. Real inference loop pending finalization of the
 ReconstructionSpec proto and the trained model artifact.
 
 The Atlas backend's `GenerateSpecPriors(parcel_id, time_slice)` calls
-this Modal endpoint. Flow:
+this Ray Serve endpoint. Flow:
 
   1. Backend resolves parcel_id -> block_subgraph via
      SpacetimeAtlasService.GetBlockSubgraph (RustyRed).
   2. Backend calls TheseusBridge.GetBatchSpacetimeEmbeddings on the
      subgraph's node_ids.
-  3. Backend POSTs the assembled tensor to this Modal endpoint.
+  3. Backend POSTs the assembled tensor to this Ray Serve endpoint.
   4. This endpoint loads the production model (or staging if flagged),
      runs the CivicPairformerBuildingHead, decodes per-part field
      distributions.
@@ -22,9 +22,9 @@ This endpoint reads the slot pointer from S3 metadata, not from a
 hard-coded path, so a promote operation flips slots without redeploy.
 
 Run:
-    modal deploy modal/building_head_infer.py
-    modal run modal/building_head_infer.py::predict \
-        --tensor-uri s3://civic-atlas/staging/predict-1.npz
+    serve run civic_atlas_ingest.building_head_infer:building_head_app
+    ray job submit --working-dir . -- python -m civic_atlas_ingest.building_head_infer \
+        s3://civic-atlas/staging/predict-1.npz
 
 Environment:
     MODEL_SLOT          'staging' or 'production' (default production)
@@ -34,36 +34,18 @@ Environment:
 from __future__ import annotations
 
 import os
+import sys
 from typing import Any, Literal
 
-import modal
+from fastapi import FastAPI
+from ray import serve
 
-image = (
-    modal.Image.debian_slim(python_version="3.11")
-    .pip_install(
-        "torch>=2.4",
-        "torch-geometric>=2.5",
-        "numpy>=1.26",
-        "boto3>=1.35",
-        "fastapi[standard]>=0.115",
-    )
-)
-
-app = modal.App("civic-atlas-building-head-infer", image=image)
-
+from .runtime import ensure_ray_initialized
 
 ModelSlot = Literal["staging", "production"]
+http_app = FastAPI(title="Civic Atlas Building Head")
 
 
-@app.function(
-    gpu="T4",
-    timeout=60,
-    cpu=2,
-    memory=8192,
-    secrets=[modal.Secret.from_name("civic-atlas-aws")],
-    keep_warm=1,
-)
-@modal.web_endpoint(method="POST", label="building-head-predict")
 def predict(payload: dict[str, Any]) -> dict[str, Any]:
     """Run the building head over a serialized block subgraph tensor.
 
@@ -90,11 +72,6 @@ def predict(payload: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-@app.function(
-    cpu=1,
-    memory=2048,
-    secrets=[modal.Secret.from_name("civic-atlas-aws")],
-)
 def health(slot: ModelSlot = "production") -> dict[str, Any]:
     """Check that a model slot has a loadable artifact."""
     return {
@@ -104,14 +81,34 @@ def health(slot: ModelSlot = "production") -> dict[str, Any]:
     }
 
 
-@app.local_entrypoint()
+@serve.deployment(
+    name="civic-atlas-building-head",
+    ray_actor_options={"num_cpus": 2, "num_gpus": 1},
+)
+@serve.ingress(http_app)
+class BuildingHeadDeployment:
+    """HTTP ingress for Pairformer prior inference."""
+
+    @http_app.post("/predict")
+    def predict_endpoint(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return predict(payload)
+
+    @http_app.get("/health")
+    def health_endpoint(self, slot: ModelSlot = "production") -> dict[str, Any]:
+        return health(slot)
+
+
+building_head_app = BuildingHeadDeployment.bind()
+
+
 def main(tensor_uri: str = "") -> None:
-    """Local entrypoint for `modal run`."""
+    """Local entrypoint for direct local smoke runs."""
     if not tensor_uri:
         print("Pass --tensor-uri s3://...")
         return
-    result = predict.remote(
-        payload={
+    ensure_ray_initialized()
+    result = predict(
+        {
             "block_subgraph_tensor_uri": tensor_uri,
             "model_slot": os.environ.get("MODEL_SLOT", "production"),
             "tenant_id": "flint",
@@ -121,3 +118,7 @@ def main(tensor_uri: str = "") -> None:
 
 
 _BUCKET = os.environ.get("S3_BUCKET", "civic-atlas")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1] if len(sys.argv) > 1 else "")

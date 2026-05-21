@@ -16,19 +16,18 @@ message rather than ImportError.
 
 Status: Phase 3 stub. The render pipeline is sketched below; the
 real geometry-node modification + GLB export lands once the
-.blend files are authored and the Scene Foundry Modal app calls in.
+.blend files are authored and the Scene Foundry Ray task calls in.
 """
 
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import sys
 from pathlib import Path
 
-try:
-    import bpy  # type: ignore[import-not-found]
-except ImportError:
+if importlib.util.find_spec("bpy") is None:
     print(
         "render_spec.py must run inside Blender. "
         "Try: blender archetypes/<slug>/archetype.blend --background "
@@ -76,7 +75,7 @@ def apply_spec_to_archetype(archetype: str, spec: dict) -> None:
     _ = (archetype, spec)
     raise NotImplementedError(
         "Phase 3 stub: real geometry-nodes wiring lands once Blender "
-        "files are authored. The Scene Foundry Modal app will call this "
+        "files are authored. The Scene Foundry Ray task will call this "
         "with the spec, archetype slug, and an out path."
     )
 

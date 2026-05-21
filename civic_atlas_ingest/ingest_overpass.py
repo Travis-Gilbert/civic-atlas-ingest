@@ -1,4 +1,4 @@
-"""Modal app: pull OSM building footprints + tags via Overpass.
+"""Ray task: pull OSM building footprints + tags via Overpass.
 
 Status: skeleton. Real implementation is pending finalization of
 the BuildingPresence / ArtifactAnchor proto in
@@ -7,8 +7,8 @@ the BuildingPresence / ArtifactAnchor proto in
 For each city target:
   1. Build an Overpass QL query for `way["building"]` and
      `relation["building"]` within the bbox.
-  2. Pull with backoff. Overpass is rate-limited; bursty Modal
-     workers wait politely.
+  2. Pull with backoff. Overpass is rate-limited; bursty Ray workers wait
+     politely.
   3. Decode tags into a sparse field bag:
      - building:levels => stories
      - height => height_m
@@ -24,8 +24,7 @@ For each city target:
      the Atlas backend over gRPC, with tenant_id='corpus'.
 
 Run:
-    modal deploy modal/ingest_overpass.py
-    modal run modal/ingest_overpass.py::ingest_city --city detroit
+    ray job submit --working-dir . -- python -m civic_atlas_ingest.ingest_overpass detroit
 
 Environment:
     CIVIC_ATLAS_GRPC_URL        URL of the Atlas backend
@@ -35,38 +34,20 @@ Environment:
 from __future__ import annotations
 
 import os
+import sys
 from typing import Any
 
-import modal
+import ray
 
 from .city_targets import CityTarget, get_target
-from .coverage_quality import ProvenanceLane, merge_strongest
-
-# Modal image. Heavy spatial deps live here, not in the host env.
-image = (
-    modal.Image.debian_slim(python_version="3.11")
-    .pip_install(
-        "httpx>=0.27",
-        "shapely>=2.0",
-        "pyproj>=3.6",
-        "grpcio>=1.65",
-        "protobuf>=5.27",
-        "tenacity>=8.2",
-    )
-)
-
-app = modal.App("civic-atlas-ingest-overpass", image=image)
+from .coverage_quality import ProvenanceLane
+from .runtime import ensure_ray_initialized
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 OVERPASS_TIMEOUT_S = 180
 
-# Bursty + rate-limit-friendly. Max 4 in flight against Overpass.
-@app.function(
-    timeout=60 * 30,
-    cpu=2,
-    memory=4096,
-    secrets=[modal.Secret.from_name("civic-atlas-corpus")],
-)
+# Bursty + rate-limit-friendly. Cluster scheduling controls max in-flight work.
+@ray.remote(num_cpus=2, memory=4 * 1024 * 1024 * 1024)
 def ingest_city(city: str) -> dict[str, Any]:
     """Pull OSM buildings for one city and write to the Atlas backend.
 
@@ -97,7 +78,9 @@ def _build_overpass_query(target: CityTarget) -> str:
 out geom tags;"""
 
 
-def _decode_tags_to_fields(tags: dict[str, str]) -> tuple[dict[str, Any], dict[str, ProvenanceLane]]:
+def _decode_tags_to_fields(
+    tags: dict[str, str],
+) -> tuple[dict[str, Any], dict[str, ProvenanceLane]]:
     """Map an OSM tag dict to (field_values, field_provenance).
 
     Only fields the building head will use are emitted. Unknown tags
@@ -145,10 +128,10 @@ def _decode_tags_to_fields(tags: dict[str, str]) -> tuple[dict[str, Any], dict[s
     return fields, lanes
 
 
-@app.local_entrypoint()
 def main(city: str = "detroit") -> None:
-    """Local entrypoint for `modal run`."""
-    result = ingest_city.remote(city=city)
+    """Local entrypoint for `ray job submit` or direct local smoke runs."""
+    ensure_ray_initialized()
+    result = ray.get(ingest_city.remote(city=city))
     print(result)
 
 
@@ -158,3 +141,5 @@ if __name__ == "__main__" and os.environ.get("CIVIC_ATLAS_DISCOVER"):
 
     for t in CITY_TARGETS:
         print(t.slug, t.bbox)
+elif __name__ == "__main__":
+    main(sys.argv[1] if len(sys.argv) > 1 else "detroit")

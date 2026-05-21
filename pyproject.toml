@@ -12,7 +12,8 @@ license = { text = "MIT" }
 authors = [{ name = "Travis Gilbert" }]
 
 dependencies = [
-    "modal>=0.64",
+    "ray[serve,train]>=2.35",
+    "fastapi>=0.115",
     "httpx>=0.27",
     "shapely>=2.0",
     "pyproj>=3.6",
@@ -22,6 +23,9 @@ dependencies = [
     "geopandas>=0.14",
     "rasterio>=1.3",
     "pillow>=10.0",
+    "boto3>=1.35",
+    "jsonschema>=4.21",
+    "tenacity>=8.2",
     "click>=8.1",
 ]
 
@@ -40,12 +44,12 @@ ml = [
 ]
 
 [project.scripts]
-# Modal apps are deployed via `modal deploy modal/ingest_overpass.py`
+# Ray jobs are submitted with `ray job submit --working-dir . -- python -m ...`
 # This script entrypoint is just a discovery helper.
-civic-atlas-ingest = "modal.__main__:cli"
+civic-atlas-ingest = "civic_atlas_ingest.__main__:cli"
 
 [tool.setuptools.packages.find]
-include = ["modal*", "primitives*"]
+include = ["civic_atlas_ingest*", "primitives*"]
 
 [tool.ruff]
 line-length = 100

@@ -11,7 +11,7 @@ how it differs from the Flint tenant (and any future per-city tenant).
    The public subdomain `corpus.ourcivicatlas.org` may exist for
    review/inspection, but no public route mutates it.
 
-2. **`corpus` is writable only by the three Modal ingest apps.**
+2. **`corpus` is writable only by the three Ray ingest tasks.**
    - `ingest_overpass`
    - `ingest_sanborn`
    - `ingest_assessor`

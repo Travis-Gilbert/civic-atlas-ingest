@@ -1,4 +1,4 @@
-"""Modal app: civic_atlas_scene_foundry.
+"""Ray task: civic_atlas_scene_foundry.
 
 Renders a `ReconstructionSpec` into a glTF asset using one of the
 eight Blender archetypes in this repo's `primitives/` subdir.
@@ -6,9 +6,9 @@ eight Blender archetypes in this repo's `primitives/` subdir.
 Flow:
   1. Caller (outbox worker, or direct gRPC from Axum) hands the spec
      JSON, the archetype slug, and a target S3 URI.
-  2. This app spins up a Modal container with Blender 4.2 LTS, with
-     the `primitives/` directory bundled into the image at
-     `/root/primitives/` via `add_local_dir`.
+  2. A RunPod Ray worker with Blender 4.2 LTS installed reads the
+     `primitives/` directory from the submitted working directory or a synced
+     mount.
   3. Runs headless Blender against the right archetype's .blend file.
   4. Result GLB is uploaded to S3 under
      s3://civic-atlas/<tenant>/assets/<spec_id>/v<version>/<content_hash>.glb.
@@ -22,8 +22,7 @@ returns a "phase-3-stub" error from render_spec.py.
 
 Run:
     cd civic-atlas-ingest
-    modal deploy modal/scene_foundry.py
-    modal run modal/scene_foundry.py::render \\
+    ray job submit --working-dir . -- python -m civic_atlas_ingest.scene_foundry \\
         --spec-json @path/to/spec.json \\
         --archetype frame-house-with-porch \\
         --tenant flint \\
@@ -38,6 +37,7 @@ Environment:
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
@@ -46,53 +46,12 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-import modal
+import ray
 
-# Blender 4.2 LTS in a Debian-based image. `primitives/` is bundled
-# into the image at /root/primitives/ via add_local_dir so the
-# scene foundry function reads the archetype .blend files directly
-# without needing a runtime git clone or separate Modal volume.
-#
-# Path expectations after image build:
-#   /root/primitives/archetypes/<slug>/archetype.blend
-#   /root/primitives/scripts/render_spec.py
-#   /root/primitives/archetypes/_hashes.json
-image = (
-    modal.Image.debian_slim(python_version="3.11")
-    .apt_install(
-        "wget", "xz-utils", "libxi6", "libxxf86vm1", "libxfixes3",
-        "libgl1", "libxkbcommon0", "libsm6", "libice6", "libxrender1",
-    )
-    .run_commands(
-        # Pin Blender to 4.2 LTS so archetype hashes stay stable.
-        "wget -q https://download.blender.org/release/Blender4.2/blender-4.2.3-linux-x64.tar.xz "
-        "-O /tmp/blender.tar.xz",
-        "tar -xf /tmp/blender.tar.xz -C /opt",
-        "mv /opt/blender-4.2.3-linux-x64 /opt/blender",
-        "ln -s /opt/blender/blender /usr/local/bin/blender",
-        "rm /tmp/blender.tar.xz",
-    )
-    .pip_install(
-        "boto3>=1.35",
-        "grpcio>=1.65",
-        "protobuf>=5.27",
-        "jsonschema>=4.21",
-    )
-    .add_local_dir("primitives", remote_path="/root/primitives")
-)
-
-app = modal.App("civic-atlas-scene-foundry", image=image)
+from .runtime import ensure_ray_initialized
 
 
-@app.function(
-    cpu=4,
-    memory=8192,
-    timeout=60 * 15,
-    secrets=[
-        modal.Secret.from_name("civic-atlas-scene-foundry"),
-        modal.Secret.from_name("civic-atlas-aws"),
-    ],
-)
+@ray.remote(num_cpus=4, num_gpus=1, memory=8 * 1024 * 1024 * 1024)
 def render(
     spec_json: str,
     archetype: str,
@@ -110,7 +69,7 @@ def render(
         "archetype_hash": "sha256-...",  # from primitives/archetypes/_hashes.json
       }
     """
-    primitives_root = Path("/root/primitives")
+    primitives_root = Path(os.environ.get("CIVIC_ATLAS_PRIMITIVES_ROOT", "primitives"))
     archetype_dir = primitives_root / "archetypes" / archetype.replace("-", "_")
     blend_file = archetype_dir / "archetype.blend"
     render_script = primitives_root / "scripts" / "render_spec.py"
@@ -145,7 +104,7 @@ def render(
             str(out_path),
         ]
 
-        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)  # noqa: S603
         if result.returncode != 0:
             raise RuntimeError(
                 f"blender render failed (exit {result.returncode}):\n"
@@ -181,19 +140,56 @@ def render(
         }
 
 
-@app.local_entrypoint()
-def main(spec_path: str = "", archetype: str = "frame-house-with-porch") -> None:
+def _spec_arg_to_json(spec_arg: str) -> str:
+    if spec_arg.startswith("@"):
+        return Path(spec_arg[1:]).read_text()
+    candidate = Path(spec_arg)
+    if candidate.exists():
+        return candidate.read_text()
+    return spec_arg
+
+
+def main(
+    spec_json: str = "",
+    archetype: str = "frame-house-with-porch",
+    tenant: str = "",
+    spec_id: str = "",
+    spec_version: int = 0,
+) -> None:
     """Local entrypoint. Reads a spec file and calls render."""
-    if not spec_path:
-        print("Pass --spec-path <path>")
+    if not spec_json:
+        print("Pass --spec-json @path/to/spec.json")
         return
-    spec = Path(spec_path).read_text()
+    spec = _spec_arg_to_json(spec_json)
     spec_dict = json.loads(spec)
-    result = render.remote(
-        spec_json=spec,
-        archetype=archetype,
-        tenant=spec_dict.get("tenant_context", {}).get("tenant_id", "flint"),
-        spec_id=spec_dict.get("spec_id", "unknown"),
-        spec_version=spec_dict.get("version", 1),
+    tenant = tenant or spec_dict.get("tenant_context", {}).get("tenant_id", "flint")
+    spec_id = spec_id or spec_dict.get("spec_id", "unknown")
+    spec_version = spec_version or spec_dict.get("spec_version", spec_dict.get("version", 1))
+    ensure_ray_initialized()
+    result = ray.get(
+        render.remote(
+            spec_json=spec,
+            archetype=archetype,
+            tenant=tenant,
+            spec_id=spec_id,
+            spec_version=spec_version,
+        )
     )
     print(result)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Render a ReconstructionSpec through Ray")
+    parser.add_argument("--spec-json", default="")
+    parser.add_argument("--archetype", default="frame-house-with-porch")
+    parser.add_argument("--tenant", default="")
+    parser.add_argument("--spec-id", default="")
+    parser.add_argument("--spec-version", type=int, default=0)
+    args = parser.parse_args()
+    main(
+        spec_json=args.spec_json,
+        archetype=args.archetype,
+        tenant=args.tenant,
+        spec_id=args.spec_id,
+        spec_version=args.spec_version,
+    )

@@ -6,14 +6,14 @@ Per Phase 6 spec: there is no automatic promotion. A trained model
 sits in S3 at `models/building_head/<version>/`, eval report
 included. To promote, a human runs this CLI with `--confirm`.
 
-This module is intentionally NOT a Modal app. Promotion is a local
+This module is intentionally NOT a Ray job. Promotion is a local
 operation that flips an S3 pointer; no compute needed. Wrapping it
-in Modal would only add latency.
+in a Ray task would only add latency.
 
 Run:
-    python -m modal.model_promote promote v0.3.1 --to production --confirm
-    python -m modal.model_promote list
-    python -m modal.model_promote diff v0.3.0 v0.3.1
+    python -m civic_atlas_ingest.model_promote promote v0.3.1 --to production --confirm
+    python -m civic_atlas_ingest.model_promote list
+    python -m civic_atlas_ingest.model_promote diff v0.3.0 v0.3.1
 """
 
 from __future__ import annotations

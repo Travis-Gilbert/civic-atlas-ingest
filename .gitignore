@@ -20,7 +20,8 @@ target/
 **/*.rs.bk
 Cargo.lock
 
-# Modal
+# Ray
+.ray/
 .modal/
 .modal_cache/
 

@@ -1,12 +1,12 @@
 # Civic Pairformer Port
 
 The Atlas building head now owns a local Pairformer model module:
-`modal/building_head_pairformer.py`.
+`civic_atlas_ingest/building_head_pairformer.py`.
 
 This is a copy-and-adapt port of the Theseus Pairformer architecture, not a
 move. Theseus keeps its GNN for epistemic graph work. Atlas gets a separate
-model artifact, trained and promoted through the `civic-atlas-ingest` Modal
-lane.
+model artifact, trained through Ray on RunPod and promoted through the
+`civic-atlas-ingest` CLI lane.
 
 ## Why Port Instead of Call Theseus Directly?
 
@@ -52,7 +52,7 @@ The boundary should be:
 
 ## Next Implementation Step
 
-Wire `modal/building_head_train.py` to:
+Wire `civic_atlas_ingest/building_head_train.py` to:
 
 1. Load corpus and tenant correction tensors.
 2. Build PyG block batches with `focus_node_idx`.

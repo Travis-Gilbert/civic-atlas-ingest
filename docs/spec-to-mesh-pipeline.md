@@ -13,18 +13,18 @@ asset that the public atlas loads.
 2. **Outbox drained.** `civic-atlas-outbox-worker` picks up the row,
    logs the projection, and (when wired) calls the Theseus bridge to
    project to RustyRed. Worker also (Phase 3+) calls into the Scene
-   Foundry Modal app.
+   Foundry Ray task.
 
-3. **Scene Foundry Modal app** (`modal/scene_foundry.py`):
+3. **Scene Foundry Ray task** (`civic_atlas_ingest/scene_foundry.py`):
    - Looks up the archetype slug for this spec (from
      `spec.metadata.archetype_slug`)
-   - Reads the archetype's `.blend` file from `/root/primitives/archetypes/<slug>/`
-     (bundled into the Modal image via `add_local_dir`)
+   - Reads the archetype's `.blend` file from the synced `primitives/`
+     directory on the RunPod Ray worker.
    - Runs Blender headless via:
      ```
-     blender /root/primitives/archetypes/<slug>/archetype.blend \
+     blender primitives/archetypes/<slug>/archetype.blend \
        --background \
-       --python /root/primitives/scripts/render_spec.py -- \
+       --python primitives/scripts/render_spec.py -- \
        --archetype <slug> \
        --spec spec.json \
        --out spec.glb
@@ -33,9 +33,9 @@ asset that the public atlas loads.
      `s3://civic-atlas/<tenant>/assets/<spec_id>/v<version>/<hash>.glb`
    - Writes a `generated_assets` row pointing at the S3 URI
 
-   Because `primitives/` lives in this same repo, archetype changes
-   are deployed by re-running `modal deploy modal/scene_foundry.py`.
-   No separate sync step.
+   Because `primitives/` lives in this same repo, archetype changes ship with
+   the Ray job working directory or with the RunPod image/mount used by the
+   cluster config.
 
 4. **Frontend fetch.** The atlas frontend's `/lost-flint/carriage-town`
    route lists 20 specs via GraphQL, reads each spec's

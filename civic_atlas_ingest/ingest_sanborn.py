@@ -1,4 +1,4 @@
-"""Modal app: ingest Sanborn fire insurance map sheets via Mapwarper.
+"""Ray task: ingest Sanborn fire insurance map sheets via Mapwarper.
 
 Status: skeleton. Real implementation is pending finalization of
 the BuildingPresence / ArtifactAnchor proto and a Sanborn color-key
@@ -13,17 +13,14 @@ LOC, and others. For each sheet:
      gray=iron, brown=adobe. Story counts are printed in each polygon.
   3. OCR the story count digits in each polygon. Confidence is low,
      so coverage_quality is held to PRIMARY_ARCHIVAL ceiling.
-  4. Emit per-sheet GeoJSON to a Modal-attached volume for human
-     spot-check.
+  4. Emit per-sheet GeoJSON to a RunPod-mounted volume or object-store prefix
+     for human spot-check.
   5. With `--commit-to-postgis`, write BuildingPresence +
      ArtifactAnchor records under tenant_id='corpus' for each
      vectorized polygon.
 
 Run:
-    modal deploy modal/ingest_sanborn.py
-    modal run modal/ingest_sanborn.py::ingest_sheet --sheet-id 12345 --dry-run
-    modal run modal/ingest_sanborn.py::ingest_sheet --sheet-id 12345 \
-        --commit-to-postgis
+    ray job submit --working-dir . -- python -m civic_atlas_ingest.ingest_sanborn 12345
 
 Environment:
     MAPWARPER_BASE_URL          override Mapwarper instance (default mapwarper.net)
@@ -34,40 +31,17 @@ Environment:
 from __future__ import annotations
 
 import os
+import sys
 from typing import Any
 
-import modal
+import ray
 
-image = (
-    modal.Image.debian_slim(python_version="3.11")
-    .apt_install("libgdal-dev", "gdal-bin", "libgeos-dev")
-    .pip_install(
-        "httpx>=0.27",
-        "shapely>=2.0",
-        "pyproj>=3.6",
-        "rasterio>=1.3",
-        "geopandas>=0.14",
-        "pillow>=10.0",
-        "pytesseract>=0.3.10",
-        "grpcio>=1.65",
-        "protobuf>=5.27",
-    )
-)
-
-app = modal.App("civic-atlas-ingest-sanborn", image=image)
+from .runtime import ensure_ray_initialized
 
 DEFAULT_MAPWARPER_BASE = "https://mapwarper.net"
 
 
-@app.function(
-    timeout=60 * 60,
-    cpu=4,
-    memory=8192,
-    secrets=[modal.Secret.from_name("civic-atlas-corpus")],
-    volumes={"/data/sanborn-spotcheck": modal.Volume.from_name(
-        "civic-atlas-sanborn-spotcheck", create_if_missing=True
-    )},
-)
+@ray.remote(num_cpus=4, memory=8 * 1024 * 1024 * 1024)
 def ingest_sheet(
     sheet_id: int,
     *,
@@ -93,13 +67,13 @@ def ingest_sheet(
     )
 
 
-@app.function(
-    timeout=60 * 30,
-    cpu=2,
-    memory=4096,
-    secrets=[modal.Secret.from_name("civic-atlas-corpus")],
-)
-def list_sheets_for_bbox(min_lat: float, min_lon: float, max_lat: float, max_lon: float) -> list[int]:
+@ray.remote(num_cpus=2, memory=4 * 1024 * 1024 * 1024)
+def list_sheets_for_bbox(
+    min_lat: float,
+    min_lon: float,
+    max_lat: float,
+    max_lon: float,
+) -> list[int]:
     """List Mapwarper sheet IDs that intersect a bbox.
 
     Mapwarper offers a search endpoint that returns georeferenced
@@ -111,14 +85,18 @@ def list_sheets_for_bbox(min_lat: float, min_lon: float, max_lat: float, max_lon
     )
 
 
-@app.local_entrypoint()
 def main(sheet_id: int = 0, dry_run: bool = True) -> None:
-    """Local entrypoint for `modal run`."""
+    """Local entrypoint for `ray job submit` or direct local smoke runs."""
     if sheet_id == 0:
         print("Pass --sheet-id <id>. Use list_sheets_for_bbox to discover IDs.")
         return
-    result = ingest_sheet.remote(sheet_id=sheet_id, dry_run=dry_run)
+    ensure_ray_initialized()
+    result = ray.get(ingest_sheet.remote(sheet_id=sheet_id, dry_run=dry_run))
     print(result)
 
 
 _MAPWARPER_BASE = os.environ.get("MAPWARPER_BASE_URL", DEFAULT_MAPWARPER_BASE)
+
+
+if __name__ == "__main__":
+    main(int(sys.argv[1]) if len(sys.argv) > 1 else 0)

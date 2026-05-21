@@ -1,6 +1,6 @@
-"""civic-atlas-ingest: Modal app package.
+"""civic-atlas-ingest: Ray task package.
 
-The three Modal apps in this package each pull from one source lane:
+The three ingest tasks in this package each pull from one source lane:
 - ingest_overpass: OpenStreetMap building tags via Overpass API
 - ingest_sanborn:  Mapwarper-georeferenced Sanborn fire insurance sheets
 - ingest_assessor: per-city assessor parcel records

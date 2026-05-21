@@ -1,0 +1,68 @@
+cluster_name: civic-atlas-ingest-runpod
+
+provider:
+  type: manual-runpod
+  note: "RunPod pods are provisioned outside Ray autoscaler; this file is the cluster shape."
+
+head_node_type: ray.head.cpu
+
+available_node_types:
+  ray.head.cpu:
+    resources:
+      CPU: 8
+      GPU: 0
+    runpod:
+      gpu_type: none
+      image: civic-atlas/ray-ingest:py311
+      volume_mounts:
+        - /workspace/civic-atlas-ingest
+  ray.worker.ingest:
+    min_workers: 0
+    max_workers: 4
+    resources:
+      CPU: 8
+      GPU: 0
+      corpus_ingest: 1
+    runpod:
+      gpu_type: none
+      image: civic-atlas/ray-ingest:py311
+  ray.worker.pairformer:
+    min_workers: 0
+    max_workers: 2
+    resources:
+      CPU: 16
+      GPU: 1
+      pairformer_train: 1
+    runpod:
+      gpu_type: A100_80GB
+      image: civic-atlas/ray-ml:py311-cuda
+  ray.worker.scene_foundry:
+    min_workers: 0
+    max_workers: 2
+    resources:
+      CPU: 12
+      GPU: 1
+      scene_foundry: 1
+    runpod:
+      gpu_type: L40S
+      image: civic-atlas/ray-blender:4.2-py311
+
+file_mounts:
+  /workspace/civic-atlas-ingest: .
+
+setup_commands:
+  - python -m pip install --upgrade pip
+  - python -m pip install -e '.[ml]'
+
+head_start_ray_commands:
+  - ray stop
+  - ulimit -n 65536; ray start --head --port=6379 --dashboard-host=0.0.0.0
+
+worker_start_ray_commands:
+  - ray stop
+  - ulimit -n 65536; ray start --address=$RAY_HEAD_IP:6379
+
+job_smoke_commands:
+  - ray status
+  - ray job submit --working-dir . -- python -m civic_atlas_ingest.ingest_assessor saginaw
+  - serve run civic_atlas_ingest.building_head_infer:building_head_app

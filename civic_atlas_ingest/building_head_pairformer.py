@@ -4,7 +4,7 @@ This is the Atlas-side port of the Theseus Pairformer idea: node and edge
 representations co-evolve, but the relation vocabulary and decoder heads are
 specific to block-coherent building reconstruction rather than epistemic edges.
 
-The module deliberately avoids importing the Modal SDK. Training, inference,
+The module deliberately avoids importing Ray. Training, inference,
 and any future gRPC shim should import this module as plain model code.
 """
 
@@ -86,7 +86,7 @@ def require_torch_geometric() -> None:
     if not (_TORCH_AVAILABLE and _PYG_AVAILABLE):
         raise RuntimeError(
             "Civic Pairformer requires torch and torch-geometric. "
-            "Install the ML dependencies or run inside the Modal training image."
+            "Install the ML dependencies or run inside the Ray training image."
         )
 
 

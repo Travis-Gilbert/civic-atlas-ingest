@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from modal import building_head_pairformer as pairformer
+from civic_atlas_ingest import building_head_pairformer as pairformer
 
 
 def test_pairformer_model_card_describes_civic_relation_space() -> None:

@@ -2,16 +2,16 @@
 
 Multi-city building corpus ingestion, Phase 6 building head training,
 and Scene Foundry rendering for the Our Civic Atlas project. One repo
-because the toolchain is shared (Python + Modal + Blender) and the
-modules co-evolve.
+because the toolchain is shared (Python + Ray on RunPod + Blender) and
+the modules co-evolve.
 
 ## What lives here
 
 | Subtree            | Purpose                                                          |
 |--------------------|------------------------------------------------------------------|
-| `modal/ingest_*`   | Phase 5: pull OSM / Sanborn / assessor data into corpus tenant   |
-| `modal/building_head_*` | Phase 6: train + serve the civic Pairformer building head   |
-| `modal/scene_foundry.py` | Phase 3: render ReconstructionSpec -> glTF via Blender     |
+| `civic_atlas_ingest/ingest_*` | Phase 5: pull OSM / Sanborn / assessor data into corpus tenant |
+| `civic_atlas_ingest/building_head_*` | Phase 6: train + serve the civic Pairformer building head |
+| `civic_atlas_ingest/scene_foundry.py` | Phase 3: render ReconstructionSpec -> glTF via Blender |
 | `primitives/`      | 8 Blender geometry-nodes archetypes consumed by Scene Foundry    |
 | `crates/civic-atlas-validate/` | Rust CLI checking corpus records vs ReconstructionSpec |
 
@@ -19,7 +19,7 @@ modules co-evolve.
 
 **In scope:**
 - Bursty, reproducible ingestion of building morphology for 10 Rust-Belt
-  cities, prioritized as listed in `modal/city_targets.py`.
+  cities, prioritized as listed in `civic_atlas_ingest/city_targets.py`.
 - Field provenance and a per-field `coverage_quality` score (0-1)
   used by Phase 6's training job for loss weighting.
 - Reproducibility: anyone running an Atlas instance can re-run.
@@ -29,12 +29,13 @@ modules co-evolve.
   the public side.
 - Mutation of any non-corpus tenant. The corpus tenant must not
   accidentally read or write into Flint, etc.
-- Long-running Railway services. Ingestion is bursty Modal only.
+- Long-running Railway services. Ingestion, model training, inference, and
+  Scene Foundry rendering run as Ray jobs or Ray Serve deployments on RunPod.
 
 ## Architecture
 
 ```
-Modal app (ingest_overpass | ingest_sanborn | ingest_assessor)
+Ray task (ingest_overpass | ingest_sanborn | ingest_assessor)
    |
    v  gRPC (over tonic-web)
 our-civic-atlas-backend (Axum)  <-- writes only to tenant_id='corpus'
@@ -47,7 +48,7 @@ PostGIS (corpus schema, RLS-enforced)
 
 ```
 civic-atlas-ingest/
-├── modal/                       # Python Modal apps
+├── civic_atlas_ingest/          # Python Ray tasks and Serve deployments
 │   ├── city_targets.py          # 10 cities + bboxes, ordered priority
 │   ├── coverage_quality.py      # per-record/per-field scoring
 │   ├── ingest_overpass.py       # Phase 5
@@ -58,6 +59,8 @@ civic-atlas-ingest/
 │   ├── building_head_infer.py   # Phase 6 inference app
 │   ├── model_promote.py         # Phase 6 promotion CLI
 │   └── scene_foundry.py         # Phase 3 render service
+├── ray_cluster/
+│   └── runpod.yaml              # RunPod-targeted Ray cluster shape
 ├── primitives/                  # Blender geometry-nodes archetypes
 │   ├── archetypes/
 │   │   ├── commercial_brick_two_story/
@@ -95,7 +98,7 @@ Theseus's epistemic graph runtime.
 ## Dev setup
 
 ```bash
-# Python (Modal)
+# Python (Ray)
 python -m venv .venv
 source .venv/bin/activate
 pip install -e .
@@ -109,7 +112,7 @@ cargo build -p civic-atlas-validate
 
 ## Invariants
 
-- Modal apps **only** write to `tenant_id = 'corpus'`. Cross-tenant
+- Ray tasks **only** write to `tenant_id = 'corpus'`. Cross-tenant
   writes return `Unauthenticated`.
 - Every record carries `coverage_quality` (0-1) reflecting which
   fields came from which source.
@@ -129,3 +132,22 @@ invariant in full.
 - `civic-atlas validate corpus --city detroit` passes clean.
 - Cross-tenant query probe: a Flint-tenant call to
   `ListPlaces` never returns corpus rows.
+
+## Ray / RunPod entrypoints
+
+Batch lanes are Ray tasks:
+
+```bash
+ray job submit --working-dir . -- python -m civic_atlas_ingest.ingest_overpass detroit
+ray job submit --working-dir . -- python -m civic_atlas_ingest.ingest_sanborn 12345
+ray job submit --working-dir . -- python -m civic_atlas_ingest.ingest_assessor detroit
+ray job submit --working-dir . -- python -m civic_atlas_ingest.building_head_train pretraining-2026-05-18 pretrain
+```
+
+Inference is Ray Serve:
+
+```bash
+serve run civic_atlas_ingest.building_head_infer:building_head_app
+```
+
+RunPod node shape and setup commands live in `ray_cluster/runpod.yaml`.
