@@ -19,7 +19,9 @@ asset that the public atlas loads.
    - Looks up the archetype slug for this spec (from
      `spec.metadata.archetype_slug`)
    - Reads the archetype's `.blend` file from the synced `primitives/`
-     directory on the RunPod Ray worker.
+     directory on the RunPod Ray worker when present. If the binary file has
+     not been hand-authored yet, `render_spec.py` builds the same archetype from
+     the checked-in procedural manifest.
    - Runs Blender headless via:
      ```
      blender primitives/archetypes/<slug>/archetype.blend \
@@ -29,8 +31,10 @@ asset that the public atlas loads.
        --spec spec.json \
        --out spec.glb
      ```
-   - Uploads the result to S3 under
+   - Uploads the GLB result to S3 under
      `s3://civic-atlas/<tenant>/assets/<spec_id>/v<version>/<hash>.glb`
+   - Uploads an OpenBIM IFC sidecar under the same version directory when
+     `render_spec.py` emits one.
    - Writes a `generated_assets` row pointing at the S3 URI
 
    Because `primitives/` lives in this same repo, archetype changes ship with
@@ -53,10 +57,10 @@ asset that the public atlas loads.
 ## Determinism
 
 Two specs with identical field values produce identical GLB files
-(modulo the GLB metadata's timestamp). The archetype's geometry-nodes
-group is the only authored geometry; spec fields drive every
-parameter. The hash check in `primitives/scripts/hash_archetypes.py`
-makes mismatched archetype versions explicit.
+(modulo the GLB metadata's timestamp). The archetype's `.blend` file or
+procedural manifest is the only authored geometry; spec fields drive every
+parameter. The hash check in `primitives/scripts/hash_archetypes.py` makes
+mismatched archetype versions explicit.
 
 ## Why not generative AI mesh?
 

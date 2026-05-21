@@ -9,16 +9,17 @@ Flow:
   2. A RunPod Ray worker with Blender 4.2 LTS installed reads the
      `primitives/` directory from the submitted working directory or a synced
      mount.
-  3. Runs headless Blender against the right archetype's .blend file.
+  3. Runs headless Blender against the right archetype's .blend file when
+     present, otherwise uses the checked-in procedural archetype builder.
   4. Result GLB is uploaded to S3 under
      s3://civic-atlas/<tenant>/assets/<spec_id>/v<version>/<content_hash>.glb.
   5. App returns the URI + content_hash; caller writes the
      generated_assets row in PostGIS.
 
-Status: Phase 3 stub. The image build + Blender invocation is wired,
-but the actual archetype .blend files don't exist yet in
-`primitives/archetypes/<slug>/archetype.blend`, so a render call
-returns a "phase-3-stub" error from render_spec.py.
+Status: XRL-C-001 runtime path. Local developer machines can validate the
+renderer contract without binary `.blend` files because `render_spec.py`
+builds the eight archetypes procedurally inside Blender. Hand-authored
+`.blend` files can still override the procedural path later.
 
 Run:
     cd civic-atlas-ingest
@@ -46,9 +47,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-import ray
-
-from .runtime import ensure_ray_initialized
+from .runtime import ensure_ray_initialized, ray
 
 
 @ray.remote(num_cpus=4, num_gpus=1, memory=8 * 1024 * 1024 * 1024)
@@ -67,6 +66,7 @@ def render(
         "content_hash": "sha256-...",
         "archetype": "...",
         "archetype_hash": "sha256-...",  # from primitives/archetypes/_hashes.json
+        "openbim_uri": "s3://...",
       }
     """
     primitives_root = Path(os.environ.get("CIVIC_ATLAS_PRIMITIVES_ROOT", "primitives"))
@@ -74,12 +74,6 @@ def render(
     blend_file = archetype_dir / "archetype.blend"
     render_script = primitives_root / "scripts" / "render_spec.py"
 
-    if not blend_file.exists():
-        raise RuntimeError(
-            f"phase-3-stub: archetype {archetype!r} has no .blend yet. "
-            f"Author it in primitives/archetypes/{archetype.replace('-', '_')}/ "
-            f"and redeploy. Expected: {blend_file}"
-        )
     if not render_script.exists():
         raise RuntimeError(f"missing render script: {render_script}")
 
@@ -88,21 +82,27 @@ def render(
         spec_path = tmp / "spec.json"
         spec_path.write_text(spec_json)
         out_path = tmp / "out.glb"
+        ifc_path = tmp / "out.ifc"
 
-        cmd = [
-            "blender",
-            str(blend_file),
-            "--background",
-            "--python",
-            str(render_script),
-            "--",
-            "--archetype",
-            archetype,
-            "--spec",
-            str(spec_path),
-            "--out",
-            str(out_path),
-        ]
+        cmd = ["blender"]
+        if blend_file.exists():
+            cmd.append(str(blend_file))
+        cmd.extend(
+            [
+                "--background",
+                "--python",
+                str(render_script),
+                "--",
+                "--archetype",
+                archetype,
+                "--spec",
+                str(spec_path),
+                "--out",
+                str(out_path),
+                "--ifc-out",
+                str(ifc_path),
+            ]
+        )
 
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)  # noqa: S603
         if result.returncode != 0:
@@ -116,6 +116,11 @@ def render(
             raise RuntimeError("render succeeded but no GLB written")
 
         content_hash = "sha256-" + hashlib.sha256(out_path.read_bytes()).hexdigest()
+        ifc_hash = (
+            "sha256-" + hashlib.sha256(ifc_path.read_bytes()).hexdigest()
+            if ifc_path.exists()
+            else None
+        )
 
         # Upload to S3
         import boto3
@@ -124,6 +129,12 @@ def render(
         s3 = boto3.client("s3")
         with out_path.open("rb") as f:
             s3.upload_fileobj(f, bucket, key, ExtraArgs={"ContentType": "model/gltf-binary"})
+        ifc_uri = None
+        if ifc_path.exists() and ifc_hash:
+            ifc_key = f"{tenant}/assets/{spec_id}/v{spec_version}/{ifc_hash}.ifc"
+            with ifc_path.open("rb") as f:
+                s3.upload_fileobj(f, bucket, ifc_key, ExtraArgs={"ContentType": "model/ifc"})
+            ifc_uri = f"s3://{bucket}/{ifc_key}"
 
         uri = f"s3://{bucket}/{key}"
 
@@ -137,6 +148,8 @@ def render(
             "content_hash": content_hash,
             "archetype": archetype,
             "archetype_hash": archetype_hash,
+            "openbim_uri": ifc_uri,
+            "openbim_hash": ifc_hash,
         }
 
 

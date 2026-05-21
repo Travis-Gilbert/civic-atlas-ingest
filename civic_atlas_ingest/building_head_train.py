@@ -62,9 +62,7 @@ import os
 import sys
 from typing import Any, Literal
 
-import ray
-
-from .runtime import ensure_ray_initialized
+from .runtime import ensure_ray_initialized, ray
 
 Stage = Literal["pretrain", "finetune"]
 

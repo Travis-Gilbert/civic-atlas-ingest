@@ -1,4 +1,4 @@
-"""Hash every archetype's .blend file and emit a manifest.
+"""Hash every archetype's authored asset or procedural manifest.
 
 The Scene Foundry pins each rendered asset to a specific archetype
 hash. When an archetype changes, every spec rendered against the old
@@ -19,6 +19,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ARCHETYPES_DIR = REPO_ROOT / "archetypes"
+RENDER_SCRIPT = REPO_ROOT / "scripts" / "render_spec.py"
 OUT_PATH = ARCHETYPES_DIR / "_hashes.json"
 
 
@@ -27,6 +28,16 @@ def hash_file(path: Path) -> str:
     with path.open("rb") as f:
         for chunk in iter(lambda: f.read(64 * 1024), b""):
             h.update(chunk)
+    return h.hexdigest()
+
+
+def hash_paths(paths: list[Path]) -> str:
+    h = hashlib.sha256()
+    for path in paths:
+        h.update(str(path.relative_to(REPO_ROOT)).encode("utf-8"))
+        h.update(b"\0")
+        h.update(path.read_bytes())
+        h.update(b"\0")
     return h.hexdigest()
 
 
@@ -39,18 +50,21 @@ def main() -> int:
             continue
         slug = child.name.replace("_", "-")
         blend = child / "archetype.blend"
-        if not blend.exists():
+        manifest = child / "__init__.py"
+        if blend.exists():
+            hashes[slug] = "sha256-" + hash_file(blend)
+        elif manifest.exists():
+            hashes[slug] = "sha256-" + hash_paths([manifest, RENDER_SCRIPT])
+        else:
             hashes[slug] = None
-            print(f"missing: {blend}", file=sys.stderr)
+            print(f"missing: {blend} or {manifest}", file=sys.stderr)
             continue
-        hashes[slug] = "sha256-" + hash_file(blend)
         print(f"hashed: {slug} -> {hashes[slug]}")
 
     OUT_PATH.write_text(json.dumps(hashes, indent=2), encoding="utf-8")
     print(f"wrote {OUT_PATH}")
 
-    # Non-zero if any archetype is missing its .blend file. CI uses
-    # this to flag uncommitted archetype work.
+    # Non-zero if any archetype is missing both binary and procedural assets.
     return 0 if all(hashes.values()) else 1
 
 

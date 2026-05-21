@@ -31,6 +31,13 @@ class CityTarget:
 # Verified against OSM admin_level=8 boundaries 2026-05-18.
 CITY_TARGETS: tuple[CityTarget, ...] = (
     CityTarget(
+        slug="flint",
+        display_name="Flint",
+        state="MI",
+        bbox=(42.952, -83.807, 43.092, -83.620),
+        assessor_public=True,
+    ),
+    CityTarget(
         slug="detroit",
         display_name="Detroit",
         state="MI",

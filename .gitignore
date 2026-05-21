@@ -31,6 +31,7 @@ Cargo.lock
 !.env.example
 
 # Local-only artifacts
+artifacts/
 data/
 fixtures-local/
 *.geojson.local

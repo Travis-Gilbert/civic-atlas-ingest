@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from archetypes import ARCHETYPES
 from archetypes._manifest_schema import validate as validate_manifest
+from openbim import write_ifc
 
 
 @click.group()
@@ -69,6 +70,20 @@ def describe(slug: str) -> None:
         click.echo(f"valid: {', '.join(sorted(ARCHETYPES.keys()))}", err=True)
         sys.exit(2)
     click.echo(json.dumps(ARCHETYPES[slug], indent=2))
+
+
+@cli.command("export-ifc")
+@click.argument("slug")
+@click.argument("spec_json", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.argument("out_path", type=click.Path(dir_okay=False, path_type=Path))
+def export_ifc(slug: str, spec_json: Path, out_path: Path) -> None:
+    """Write an OpenBIM IFC sidecar for one archetype/spec pair."""
+    if slug not in ARCHETYPES:
+        click.echo(f"unknown archetype: {slug}", err=True)
+        sys.exit(2)
+    spec = json.loads(spec_json.read_text(encoding="utf-8"))
+    write_ifc(out_path, archetype=slug, spec=spec)
+    click.echo(str(out_path))
 
 
 if __name__ == "__main__":

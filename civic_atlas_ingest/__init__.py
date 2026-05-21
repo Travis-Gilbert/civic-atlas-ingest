@@ -5,9 +5,9 @@ The three ingest tasks in this package each pull from one source lane:
 - ingest_sanborn:  Mapwarper-georeferenced Sanborn fire insurance sheets
 - ingest_assessor: per-city assessor parcel records
 
-All three write only to tenant_id='corpus' in the Atlas backend's
-PostGIS via gRPC. Tenant isolation is enforced server-side; this
-package does not require any other tenant's credentials.
+All three emit typed, content-hashed corpus batches for tenant_id='corpus'.
+Backend writes and S3 upload are explicit follow-up switches rather than
+implicit local side effects.
 """
 
 __version__ = "0.1.0"

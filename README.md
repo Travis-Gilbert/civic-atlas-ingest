@@ -9,10 +9,10 @@ the modules co-evolve.
 
 | Subtree            | Purpose                                                          |
 |--------------------|------------------------------------------------------------------|
-| `civic_atlas_ingest/ingest_*` | Phase 5: pull OSM / Sanborn / assessor data into corpus tenant |
+| `civic_atlas_ingest/ingest_*` | Phase 5: pull OSM / Sanborn / assessor data into typed corpus batches |
 | `civic_atlas_ingest/building_head_*` | Phase 6: train + serve the civic Pairformer building head |
-| `civic_atlas_ingest/scene_foundry.py` | Phase 3: render ReconstructionSpec -> glTF via Blender |
-| `primitives/`      | 8 Blender geometry-nodes archetypes consumed by Scene Foundry    |
+| `civic_atlas_ingest/scene_foundry.py` | Phase 3: render ReconstructionSpec -> glTF + IFC via Blender |
+| `primitives/`      | 8 Blender/procedural archetypes plus OpenBIM sidecar export      |
 | `crates/civic-atlas-validate/` | Rust CLI checking corpus records vs ReconstructionSpec |
 
 ## Scope and non-goals
@@ -142,6 +142,14 @@ ray job submit --working-dir . -- python -m civic_atlas_ingest.ingest_overpass d
 ray job submit --working-dir . -- python -m civic_atlas_ingest.ingest_sanborn 12345
 ray job submit --working-dir . -- python -m civic_atlas_ingest.ingest_assessor detroit
 ray job submit --working-dir . -- python -m civic_atlas_ingest.building_head_train pretraining-2026-05-18 pretrain
+```
+
+Local smoke runs can use the built-in Ray fallback when Ray is not installed:
+
+```bash
+python3 -m civic_atlas_ingest.ingest_overpass flint --limit 25
+python3 -m civic_atlas_ingest.ingest_assessor flint --limit 25
+python3 -m primitives.scripts.cli export-ifc commercial-brick-two-story spec.json out.ifc
 ```
 
 Inference is Ray Serve:

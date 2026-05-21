@@ -35,6 +35,9 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.10",
 ]
+corpus = [
+    "pyarrow>=16.0",
+]
 ml = [
     "torch>=2.4",
     "torch-geometric>=2.5",

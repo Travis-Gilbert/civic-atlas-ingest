@@ -1,0 +1,10 @@
+{
+  "church": "sha256-d445b103fff6bdbf458eb9a7e7ea22c6e2debadac4cba6591ff744766dda7ed5",
+  "commercial-brick-two-story": "sha256-500441b6ca08ed2db4abfe4bc32f33d2379d9f160eed5c820a0b469a473a9216",
+  "factory-bay": "sha256-1053cfb8bfd85e95dfbba5c8bb4d4adcd856bb1e53d5a9e086689376c54f9057",
+  "frame-house-with-porch": "sha256-ab5f5962518f8d005343e2726929385bc1fa80a3541487220162504c32a85fce",
+  "gas-station": "sha256-d057b0ce4acd979db2774f7db91e112a0fc57c647f89e5206e4491c87fd15730",
+  "mixed-use-storefront": "sha256-0da8b12ab1e7d7c051f16163ce9d9f797fbf3c78c36a1883bae7086af6956514",
+  "school": "sha256-9a9f20f086af2d56bd58bcf81c35741cf87850c52eb7cd9424889b28b513eb80",
+  "warehouse": "sha256-895ec2c223f2a2321b5a0ab258a53045c699918b03fcb2d70b338803f402dcf8"
+}

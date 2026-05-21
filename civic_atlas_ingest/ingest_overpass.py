@@ -33,34 +33,66 @@ Environment:
 
 from __future__ import annotations
 
+import argparse
+import json
 import os
 import sys
 from typing import Any
 
-import ray
-
 from .city_targets import CityTarget, get_target
 from .coverage_quality import ProvenanceLane
-from .runtime import ensure_ray_initialized
+from .runtime import ensure_ray_initialized, ray
+from .training_corpus import (
+    TrainingCorpusRecord,
+    bbox_polygon,
+    make_training_record,
+    write_training_batch,
+)
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 OVERPASS_TIMEOUT_S = 180
 
 # Bursty + rate-limit-friendly. Cluster scheduling controls max in-flight work.
 @ray.remote(num_cpus=2, memory=4 * 1024 * 1024 * 1024)
-def ingest_city(city: str) -> dict[str, Any]:
+def ingest_city(
+    city: str,
+    *,
+    output_uri: str | None = None,
+    fixture_json: str | None = None,
+    bbox: tuple[float, float, float, float] | None = None,
+    limit: int = 0,
+) -> dict[str, Any]:
     """Pull OSM buildings for one city and write to the Atlas backend.
 
     Returns a summary dict: { 'city', 'ways', 'relations',
     'records_written', 'mean_coverage_quality' }.
     """
     target = get_target(city)
-    raise NotImplementedError(
-        "Phase 5 stub. Implementation lands after the BuildingPresence "
-        "proto is final in our-civic-atlas-backend. Until then, this "
-        "function only validates the city slug and prints the bbox.\n"
-        f"target={target!r}"
+    active_target = target if bbox is None else _target_with_bbox(target, bbox)
+    query = _build_overpass_query(active_target)
+    data = _load_fixture_or_fetch(fixture_json, query)
+    records = _records_from_overpass(
+        data,
+        target=active_target,
+        source_uri=OVERPASS_URL,
+        limit=limit,
     )
+    batch = write_training_batch(records, source="overpass", output_uri=output_uri)
+
+    ways = sum(1 for item in data.get("elements", []) if item.get("type") == "way")
+    relations = sum(1 for item in data.get("elements", []) if item.get("type") == "relation")
+    mean_quality = (
+        sum(record.coverage.quality for record in records) / len(records) if records else 0.0
+    )
+    return {
+        "city": active_target.slug,
+        "ways": ways,
+        "relations": relations,
+        "records_written": len(records),
+        "mean_coverage_quality": round(mean_quality, 4),
+        "query": query,
+        "batch": batch.to_json(),
+    }
 
 
 def _build_overpass_query(target: CityTarget) -> str:
@@ -116,8 +148,6 @@ def _decode_tags_to_fields(
         lanes["roof_material"] = ProvenanceLane.OSM_TAGGED
 
     if "start_date" in tags:
-        # OSM start_date is messy: "1898", "1898-04", "c. 1900", "1900s"
-        # Real parsing lives in osm-utils; this is a stub.
         fields["start_date_raw"] = tags["start_date"]
         lanes["start_date_raw"] = ProvenanceLane.OSM_TAGGED
 
@@ -125,14 +155,136 @@ def _decode_tags_to_fields(
         fields["display_name"] = tags["name"]
         lanes["display_name"] = ProvenanceLane.OSM_TAGGED
 
+    if "building" in tags:
+        fields["building"] = tags["building"]
+        lanes["building"] = ProvenanceLane.OSM_TAGGED
+
+    if "amenity" in tags:
+        fields["amenity"] = tags["amenity"]
+        lanes["amenity"] = ProvenanceLane.OSM_TAGGED
+
+    if "landuse" in tags:
+        fields["landuse"] = tags["landuse"]
+        lanes["landuse"] = ProvenanceLane.OSM_TAGGED
+
     return fields, lanes
 
 
-def main(city: str = "detroit") -> None:
+def _records_from_overpass(
+    data: dict[str, Any],
+    *,
+    target: CityTarget,
+    source_uri: str,
+    limit: int = 0,
+) -> list[TrainingCorpusRecord]:
+    records: list[TrainingCorpusRecord] = []
+    for element in data.get("elements", []):
+        if element.get("type") not in {"way", "relation"}:
+            continue
+        tags = element.get("tags", {})
+        geometry = _element_geometry(element)
+        if not geometry:
+            geometry = bbox_polygon(*target.bbox)
+        fields, lanes = _decode_tags_to_fields(tags)
+        if not fields:
+            fields = {"building": tags.get("building", "yes")}
+            lanes = {"building": ProvenanceLane.FOOTPRINT_ONLY}
+        records.append(
+            make_training_record(
+                source="overpass",
+                source_id=f"{element.get('type')}:{element.get('id')}",
+                city=target.slug,
+                geometry=geometry,
+                fields=fields,
+                lanes=lanes,
+                source_uri=source_uri,
+                extra={"osm_type": element.get("type"), "osm_tags": tags},
+            )
+        )
+        if limit and len(records) >= limit:
+            break
+    return records
+
+
+def _element_geometry(element: dict[str, Any]) -> dict[str, Any] | None:
+    raw_geometry = element.get("geometry")
+    if not raw_geometry:
+        return None
+    coords = [[float(point["lon"]), float(point["lat"])] for point in raw_geometry]
+    if len(coords) < 3:
+        return {"type": "LineString", "coordinates": coords}
+    if coords[0] != coords[-1]:
+        coords.append(coords[0])
+    return {"type": "Polygon", "coordinates": [coords]}
+
+
+def _load_fixture_or_fetch(fixture_json: str | None, query: str) -> dict[str, Any]:
+    if fixture_json:
+        return json.loads(_read_arg_or_path(fixture_json))
+
+    import httpx
+
+    response = httpx.post(
+        OVERPASS_URL,
+        data={"data": query},
+        headers={"User-Agent": "civic-atlas-ingest/0.1"},
+        timeout=OVERPASS_TIMEOUT_S + 30,
+        follow_redirects=True,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def _read_arg_or_path(value: str) -> str:
+    if value.startswith("@"):
+        return open(value[1:], encoding="utf-8").read()
+    candidate = os.path.expanduser(value)
+    if os.path.exists(candidate):
+        return open(candidate, encoding="utf-8").read()
+    return value
+
+
+def _target_with_bbox(
+    target: CityTarget,
+    bbox: tuple[float, float, float, float],
+) -> CityTarget:
+    return CityTarget(
+        slug=target.slug,
+        display_name=target.display_name,
+        state=target.state,
+        bbox=bbox,
+        assessor_public=target.assessor_public,
+    )
+
+
+def _parse_bbox(value: str) -> tuple[float, float, float, float]:
+    parts = [float(part.strip()) for part in value.split(",")]
+    if len(parts) != 4:
+        raise argparse.ArgumentTypeError("bbox must be min_lat,min_lon,max_lat,max_lon")
+    return (parts[0], parts[1], parts[2], parts[3])
+
+
+def main(argv: list[str] | None = None) -> None:
     """Local entrypoint for `ray job submit` or direct local smoke runs."""
+    parser = argparse.ArgumentParser(description="Ingest OSM building records via Overpass")
+    parser.add_argument("city", nargs="?", default="flint")
+    parser.add_argument("--output-uri", default=None)
+    parser.add_argument("--fixture-json", default=None)
+    parser.add_argument("--bbox", type=_parse_bbox, default=None)
+    parser.add_argument("--limit", type=int, default=0)
+    args = parser.parse_args(argv)
+
     ensure_ray_initialized()
-    result = ray.get(ingest_city.remote(city=city))
-    print(result)
+    result = ray.get(
+        ingest_city.remote(
+            city=args.city,
+            output_uri=args.output_uri,
+            fixture_json=args.fixture_json,
+            bbox=args.bbox,
+            limit=args.limit,
+        )
+    )
+    print(json.dumps(result, indent=2, sort_keys=True))
 
 
 # Discovery helper: makes the city list visible from the file directly.
@@ -142,4 +294,4 @@ if __name__ == "__main__" and os.environ.get("CIVIC_ATLAS_DISCOVER"):
     for t in CITY_TARGETS:
         print(t.slug, t.bbox)
 elif __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "detroit")
+    main(sys.argv[1:])
