@@ -79,7 +79,7 @@ OSM_FIXTURE_PATH = (
 
 
 # Configuration
-MODEL_VERSION = "typology-v0.1.0-parcel-joined"
+MODEL_VERSION = "typology-v0.1.1-parcel-joined-with-osm-weak-fallback"
 CITY_PACK_NAME = "us/mi/flint"
 RANDOM_STATE = 42
 CONFIDENCE_THRESHOLD = 0.5  # below this, force to UNKNOWN
@@ -115,17 +115,29 @@ def main() -> int:
     print(f"  Join complete. Match rate: {match_rate:.1%}")
 
     print("\n[4/8] Deriving labels...")
-    labels = derive_labels_for_joined(joined)
+    labels, label_sources = derive_labels_for_joined(joined)
     label_strs = np.array([l.value for l in labels])
+    label_source_strs = np.array(label_sources)
     label_dist = pd.Series(label_strs).value_counts().to_dict()
     for cls, count in sorted(label_dist.items(), key=lambda x: -x[1]):
         print(f"  {cls:>12}  {count:>5}  ({100 * count / len(labels):>4.1f}%)")
+    print("Label-source breakdown:")
+    source_dist = pd.Series(label_source_strs).value_counts().to_dict()
+    for source, count in sorted(source_dist.items(), key=lambda x: -x[1]):
+        print(f"  {source:>12}  {count:>5}  ({100 * count / len(labels):>4.1f}%)")
 
     # 5. Features
     print("\n[5/8] Extracting features...")
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=RuntimeWarning, module="shapely")
         features = extract_features_for_joined(joined)
+    # Add label_source one-hot side-channel so the classifier can
+    # learn to downweight weak-labeled rows implicitly. Same row
+    # order as joined / labels.
+    for source in ("parcel", "osm_civic", "osm_weak", "unknown"):
+        features[f"label_source__{source}"] = (
+            label_source_strs == source
+        ).astype(int)
     # Replace NaN/Inf in geometric features with sensible fallbacks so
     # LightGBM doesn't have to handle them inconsistently across splits.
     features = features.replace([np.inf, -np.inf], np.nan)
@@ -354,7 +366,10 @@ def main() -> int:
         feature["properties"]["typology_confidence"] = float(
             round(full_max_proba[idx], 4)
         )
-    OSM_FIXTURE_PATH.write_text(json.dumps(osm_data))
+    # Match the original fixture's 2-space-indent format so the diff
+    # is readable (the file was pretty-printed by
+    # scripts/fetch-osm-buildings.mjs in the Open-Flint-Atlas repo).
+    OSM_FIXTURE_PATH.write_text(json.dumps(osm_data, indent=2))
     print(f"  Enriched fixture: {OSM_FIXTURE_PATH}")
     print(
         f"  Distribution: "

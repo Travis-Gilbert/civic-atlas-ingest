@@ -1,17 +1,17 @@
 {
-  "model_version": "typology-v0.1.0-parcel-joined",
+  "model_version": "typology-v0.1.1-parcel-joined-with-osm-weak-fallback",
   "feature_version": "features-v0.1.0",
   "city_pack": "us/mi/flint",
-  "trained_at": "2026-05-22T22:14:13.109312+00:00",
+  "trained_at": "2026-05-22T22:25:57.679313+00:00",
   "label_source": "Flint Assessor parcel layer (gis.cityofflint.com Parcels FeatureService) joined to OSM building footprints by centroid-in-parcel, with OSM-tag-derived CIVIC overrides. NO hand-labeled validation set per spec \u00a7A3 yet \u2014 when one arrives, retrain to v0.2.0 and report f1 against that gold standard.",
   "dataset_hashes": {
     "parcels_geojson": "64207783fb29ee839785798dde09dcd81b3770bc0041bbf2c75c65aadf2390ce",
-    "osm_buildings_fixture": "7f7a157a0d6464c780c6fcbca6ced6eb52ac9a5d2339baaa65ba24a51e3a13e6"
+    "osm_buildings_fixture": "03111b8d39c0cea604904148ff4a614b7ec6b32023e469f1ba31503e107c2756"
   },
   "training": {
-    "n_train": 11739,
-    "n_calibration": 1677,
-    "n_test": 3354,
+    "n_train": 12299,
+    "n_calibration": 1758,
+    "n_test": 3515,
     "n_inference": 21182,
     "classes_predicted": [
       "civic",
@@ -26,9 +26,9 @@
     "random_state": 42
   },
   "metrics": {
-    "macro_f1": 0.7839184210526315,
+    "macro_f1": 0.8040295275467353,
     "spec_floor_passed": true,
-    "classification_report": "              precision    recall  f1-score   support\n\n       civic      0.958     0.885     0.920        26\n  commercial      0.861     0.842     0.851       316\n  industrial      0.474     0.310     0.375        29\n residential      0.986     0.993     0.989      2983\n\n    accuracy                          0.972      3354\n   macro avg      0.820     0.757     0.784      3354\nweighted avg      0.970     0.972     0.971      3354\n",
+    "classification_report": "              precision    recall  f1-score   support\n\n       civic      1.000     1.000     1.000        25\n  commercial      0.878     0.865     0.872       334\n  industrial      0.474     0.281     0.353        32\n residential      0.989     0.994     0.991      3124\n\n    accuracy                          0.976      3515\n   macro avg      0.835     0.785     0.804      3515\nweighted avg      0.973     0.976     0.974      3515\n",
     "confusion_matrix": {
       "labels": [
         "civic",
@@ -38,28 +38,28 @@
       ],
       "matrix": [
         [
-          23,
-          3,
+          25,
+          0,
           0,
           0
         ],
         [
-          1,
-          266,
-          9,
-          40
+          0,
+          289,
+          10,
+          35
         ],
         [
           0,
-          19,
+          22,
           9,
           1
         ],
         [
           0,
-          21,
-          1,
-          2961
+          18,
+          0,
+          3106
         ]
       ]
     }

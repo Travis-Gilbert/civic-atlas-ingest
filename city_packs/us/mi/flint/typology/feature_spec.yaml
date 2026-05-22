@@ -125,3 +125,7 @@ feature_columns:
 - has_osm_use_tag
 - has_height_signal
 - feature_completeness
+- label_source__parcel
+- label_source__osm_civic
+- label_source__osm_weak
+- label_source__unknown
