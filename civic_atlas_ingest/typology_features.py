@@ -1,154 +1,279 @@
 """
 Phase A typology — feature extraction pipeline.
 
-Per-building feature vector construction. Combines:
+Per-building feature vector construction:
   - Geometric features from Shapely on the footprint
-  - OSM-tag features (one-hot or hash-bucket for open-vocab tags)
-  - Spatial-context features from OSMnx (road class, distance to road,
-    neighbor density) and the parcel join (zoning, parcel area ratio)
+  - OSM-tag features (one-hot over the fixed-vocab `building` values)
+  - Parcel-context features from the spatial join with the Flint
+    parcel layer (zoning code as one-hot, parcel_area_m2,
+    parcel_area_ratio)
   - Completeness flags so the classifier knows what it doesn't know
 
-Scaffolded 2026-05-22. Implementation pending A3 (hand-labeled
-validation set). The features ARE definable now from the spec, but
-since the classifier hasn't been trained yet, locking in a feature
-spec without iteration risks shipping a sub-optimal feature set.
-The function signatures are stable; the bodies await first training
-run.
+Determinism per spec §10 MUST: same (osm_snapshot, parcel_snapshot,
+feature_version) MUST produce identical feature vectors. This is
+honored by computing every feature deterministically from input
+geometry + properties without random state.
 
 Spec reference: SPEC-PHASE-A-TYPOLOGY.md §4 (Feature engineering).
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Any
 
-try:
-    import geopandas as gpd  # noqa: F401  (re-exported via type hints)
-    from shapely.geometry.base import BaseGeometry  # noqa: F401
-except ImportError as exc:  # pragma: no cover
-    raise ImportError(
-        "typology_features requires GeoPandas + Shapely. Install with "
-        "`pip install -e .` (base deps) from civic-atlas-ingest root."
-    ) from exc
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+from shapely.geometry import Polygon
+from shapely.geometry.base import BaseGeometry
+
+
+FEATURE_VERSION = "features-v0.1.0"
+
+
+# OSM building tag values worth one-hot encoding. Covers the values
+# actually present in the Flint fixture (verified 2026-05-22) plus a
+# few standard OSM tags that may appear in future data.
+BUILDING_TAG_VOCAB: tuple[str, ...] = (
+    "yes",
+    "house",
+    "apartments",
+    "detached",
+    "semidetached_house",
+    "terrace",
+    "residential",
+    "garage",
+    "shed",
+    "carport",
+    "commercial",
+    "retail",
+    "office",
+    "industrial",
+    "warehouse",
+    "school",
+    "church",
+    "university",
+    "hospital",
+    "public",
+    "civic",
+    "government",
+    "library",
+    "museum",
+    "service",
+    "roof",
+)
+
+
+# Flint zoning code one-hot vocabulary. Verified against the parcel
+# data (top codes by frequency). Codes not in this list are bucketed
+# into `zoning_other`.
+ZONING_VOCAB: tuple[str, ...] = (
+    "TN-1",
+    "TN-2",
+    "GN-1",
+    "GN-2",
+    "MR-1",
+    "MR-2",
+    "MR-3",
+    "GI-1",
+    "GI-2",
+    "CC",
+    "UC",
+    "NC",
+    "CE",
+    "DE",
+    "OS",
+    "PC",
+    "DC",
+    "IC",
+)
 
 
 @dataclass(frozen=True)
-class FeatureSnapshotInputs:
-    """
-    Inputs to a deterministic feature snapshot.
+class FeatureColumns:
+    """Names of the columns produced by `extract_features_for_joined`."""
 
-    Determinism per spec §10 MUST: same (osm_snapshot, parcel_snapshot,
-    feature_version) MUST produce identical features.
-    """
-
-    osm_snapshot_uri: str
-    parcel_snapshot_uri: str
-    road_network_uri: str
-    feature_version: str
-    city_pack: str
-
-
-def extract_geometric_features(footprint: Any) -> dict[str, float]:
-    """
-    Shapely-based geometric features on a single footprint.
-
-    Returns: area_m2, perimeter_m, perimeter_area_ratio,
-    convex_hull_ratio, vertex_count, aspect_ratio, axis_long_m,
-    axis_short_m, compactness.
-
-    Open question for implementor: aspect_ratio derivation method
-    (minimum-rotated-rectangle vs eigen-decomposition of vertex
-    covariance). Spec §4 doesn't pin it; the choice affects which
-    buildings register as "long-narrow industrial" by shape alone.
-    """
-    raise NotImplementedError(
-        "extract_geometric_features pending A2 implementation. "
-        "Decision needed: aspect_ratio via minimum-rotated-rectangle "
-        "or eigen-decomposition? Note in feature_spec.yaml when chosen."
+    geometric: tuple[str, ...] = (
+        "area_m2",
+        "perimeter_m",
+        "perimeter_area_ratio",
+        "convex_hull_ratio",
+        "vertex_count",
+        "aspect_ratio",
+        "axis_long_m",
+        "axis_short_m",
+        "compactness",
+    )
+    parcel: tuple[str, ...] = (
+        "parcel_area_m2",
+        "parcel_area_ratio",
+        "has_parcel_join",
+    )
+    completeness: tuple[str, ...] = (
+        "has_osm_use_tag",
+        "has_height_signal",
+        "feature_completeness",
     )
 
 
-def extract_osm_tag_features(properties: dict[str, Any]) -> dict[str, Any]:
-    """
-    OSM-tag features from a single building's properties dict.
+FEATURE_COLUMNS = FeatureColumns()
 
-    One-hot for fixed-vocab tags (building, amenity, shop, office,
-    industrial, landuse). Hash-bucket for open-vocab name/operator
-    if those are used downstream.
 
-    Open question for implementor: hash-bucket dim (256? 1024?) and
-    whether to include name at all. Spec §4 lists `has_addr_housenumber`
-    as a residential signal; that's a boolean derived feature.
+def extract_geometric_features(footprint: BaseGeometry) -> dict[str, float]:
     """
-    raise NotImplementedError(
-        "extract_osm_tag_features pending A2 implementation. "
-        "Decision needed: open-vocab handling (one-hot known list "
-        "only, vs hash-bucket, vs drop). Document in feature_spec.yaml."
+    Shapely-based geometric features on a single footprint polygon.
+
+    Returns area_m2, perimeter_m, perimeter_area_ratio, convex_hull_ratio,
+    vertex_count, aspect_ratio (long-axis / short-axis), axis_long_m,
+    axis_short_m, compactness (4π·area / perimeter²).
+
+    Aspect ratio is computed via the minimum-rotated-rectangle bounding
+    box; this is robust to L-shaped footprints (the bbox aligns with the
+    building's actual long axis, not the cardinal axes).
+    """
+    if footprint is None or footprint.is_empty:
+        return {col: math.nan for col in FEATURE_COLUMNS.geometric}
+
+    # All metric calculations want a projected CRS. The caller is
+    # responsible for ensuring the geometry is in a meter-based CRS
+    # (this module is called from inside the joined GeoDataFrame
+    # pipeline which projects to EPSG:3857 first).
+    area = footprint.area
+    perimeter = footprint.length
+    perimeter_area_ratio = perimeter / area if area > 0 else math.nan
+    convex_hull_area = footprint.convex_hull.area
+    convex_hull_ratio = area / convex_hull_area if convex_hull_area > 0 else math.nan
+    vertex_count = _count_vertices(footprint)
+    compactness = (
+        4 * math.pi * area / (perimeter * perimeter) if perimeter > 0 else math.nan
     )
 
+    # Minimum-rotated-rectangle for robust aspect ratio.
+    mrr = footprint.minimum_rotated_rectangle
+    axis_long, axis_short = _rotated_bbox_axes(mrr)
+    aspect_ratio = axis_long / axis_short if axis_short > 0 else math.nan
 
-def extract_spatial_context_features(
-    footprint: Any,
-    road_network: Any,
-    parcel_data: Any,
-    neighbors: Any,
-) -> dict[str, float | str | None]:
-    """
-    Spatial-context features per spec §4.
-
-    Returns: dist_to_nearest_road_m, road_class_nearest,
-    neighbor_count_50m, neighbor_count_100m,
-    dominant_zoning_in_parcel, parcel_area_ratio.
-
-    Uses OSMnx (already in `pyproject.toml`) for road-network access.
-    Parcel join needs the Flint zoning GeoJSON URL captured in
-    `docs/data-sources.md` (A3-task-2 from the implementation plan).
-    """
-    raise NotImplementedError(
-        "extract_spatial_context_features pending A3-task-2 "
-        "(Flint zoning GeoJSON URL capture). See "
-        "docs/plans/atlas-typology-phase-a-implementation.md in the "
-        "Open-Flint-Atlas-main-release repo."
-    )
+    return {
+        "area_m2": area,
+        "perimeter_m": perimeter,
+        "perimeter_area_ratio": perimeter_area_ratio,
+        "convex_hull_ratio": convex_hull_ratio,
+        "vertex_count": float(vertex_count),
+        "aspect_ratio": aspect_ratio,
+        "axis_long_m": axis_long,
+        "axis_short_m": axis_short,
+        "compactness": compactness,
+    }
 
 
-def compute_completeness_flags(
+def _count_vertices(geometry: BaseGeometry) -> int:
+    """Count exterior-ring vertices for Polygon; sum across parts for MultiPolygon."""
+    if isinstance(geometry, Polygon):
+        return len(geometry.exterior.coords) - 1  # closing duplicate
+    if hasattr(geometry, "geoms"):
+        return sum(_count_vertices(g) for g in geometry.geoms)
+    return 0
+
+
+def _rotated_bbox_axes(rotated_bbox: BaseGeometry) -> tuple[float, float]:
+    """Return (long_axis_m, short_axis_m) from a minimum-rotated-rectangle."""
+    if rotated_bbox is None or rotated_bbox.is_empty:
+        return (math.nan, math.nan)
+    coords = list(rotated_bbox.exterior.coords)
+    if len(coords) < 5:
+        return (math.nan, math.nan)
+    # The MRR has 4 unique corners + closing point. Side lengths come
+    # from consecutive pairs.
+    side_a = math.hypot(coords[1][0] - coords[0][0], coords[1][1] - coords[0][1])
+    side_b = math.hypot(coords[2][0] - coords[1][0], coords[2][1] - coords[1][1])
+    return (max(side_a, side_b), min(side_a, side_b))
+
+
+def building_tag_features(building_tag: Any) -> dict[str, int]:
+    """One-hot the `building` tag against BUILDING_TAG_VOCAB."""
+    tag = building_tag.strip().lower() if isinstance(building_tag, str) else ""
+    return {
+        f"building_tag__{vocab}": int(tag == vocab) for vocab in BUILDING_TAG_VOCAB
+    }
+
+
+def zoning_features(zoning: Any) -> dict[str, int]:
+    """One-hot the parcel zoning code against ZONING_VOCAB. Falls into `zoning_other`."""
+    z = zoning.strip() if isinstance(zoning, str) else ""
+    one_hot = {f"zoning__{code}": int(z == code) for code in ZONING_VOCAB}
+    one_hot["zoning__other"] = int(bool(z) and z not in ZONING_VOCAB)
+    one_hot["zoning__missing"] = int(not z)
+    return one_hot
+
+
+def completeness_features(
+    osm_props: dict[str, Any],
     has_parcel_join: bool,
-    has_osm_use_tag: bool,
-    has_height_signal: bool,
-) -> dict[str, bool | float]:
+) -> dict[str, float | int]:
     """
-    Boolean flags + a 0-1 feature_completeness scalar per spec §10 MUST.
-
-    `feature_completeness` is a REAL number in [0, 1], not a boolean —
-    the renderer multiplies confidence by it. The weighting between
-    the three component signals is a design knob; A2 implementation
-    decides the coefficients.
+    Per-row completeness signals. `feature_completeness` is the
+    weighted real number in [0, 1] per spec §10 MUST.
     """
-    raise NotImplementedError(
-        "compute_completeness_flags pending A2 implementation. "
-        "Decision needed: weight coefficients for parcel/use/height "
-        "signals. Spec §10 MUST: feature_completeness is real, not "
-        "boolean."
+    has_osm_use_tag = bool(osm_props.get("use"))
+    has_height_signal = bool(
+        osm_props.get("height_meters") is not None or osm_props.get("levels") is not None
     )
+    # Weights chosen to put parcel-join at the dominant ~50% of
+    # completeness, with use-tag and height contributing smaller deltas.
+    score = 0.30
+    if has_parcel_join:
+        score += 0.50
+    if has_osm_use_tag:
+        score += 0.10
+    if has_height_signal:
+        score += 0.10
+    return {
+        "has_osm_use_tag": int(has_osm_use_tag),
+        "has_height_signal": int(has_height_signal),
+        "feature_completeness": min(1.0, score),
+    }
 
 
-def build_feature_snapshot(inputs: FeatureSnapshotInputs) -> Any:
+def extract_features_for_joined(joined: gpd.GeoDataFrame) -> pd.DataFrame:
     """
-    End-to-end feature pipeline: read OSM + parcels + road network,
-    compute every per-building feature, write a deterministic snapshot
-    to DuckDB.
+    Vectorized feature extraction across an already-joined GeoDataFrame
+    (output of typology_join.join_buildings_to_parcels).
 
-    Returns: path to the DuckDB feature snapshot file.
-
-    Determinism: same inputs MUST produce identical output bytes per
-    spec §10. The snapshot file is content-addressed by its hash; the
-    same hash means the same features for the same city pack.
+    Returns a pandas DataFrame indexed by the same index as `joined`,
+    with all feature columns from FEATURE_COLUMNS plus the one-hot
+    building_tag__* and zoning__* columns.
     """
-    raise NotImplementedError(
-        "build_feature_snapshot pending A2 implementation. Composes "
-        "the four extract_* helpers above plus a DuckDB writer. "
-        "Determinism MUST be verified by running twice and comparing "
-        "the snapshot file hash."
-    )
+    # Reproject to EPSG:3857 once for all metric geometry calculations.
+    joined_m = joined.to_crs(epsg=3857)
+
+    rows: list[dict[str, Any]] = []
+    for idx, row in joined_m.iterrows():
+        geom = row.geometry
+        feats = extract_geometric_features(geom)
+        feats.update(building_tag_features(row.get("building")))
+        feats.update(zoning_features(row.get("parcel_zoning")))
+        has_join = bool(row.get("has_parcel_join", False))
+        feats["parcel_area_m2"] = (
+            float(row["parcel_area_m2"]) if has_join and pd.notna(row.get("parcel_area_m2")) else math.nan
+        )
+        feats["parcel_area_ratio"] = (
+            float(row["parcel_area_ratio"])
+            if has_join and pd.notna(row.get("parcel_area_ratio"))
+            else math.nan
+        )
+        feats["has_parcel_join"] = int(has_join)
+        feats.update(
+            completeness_features(
+                {
+                    "use": row.get("use"),
+                    "height_meters": row.get("height_meters"),
+                    "levels": row.get("levels"),
+                },
+                has_parcel_join=has_join,
+            )
+        )
+        rows.append(feats)
+
+    return pd.DataFrame(rows, index=joined.index)

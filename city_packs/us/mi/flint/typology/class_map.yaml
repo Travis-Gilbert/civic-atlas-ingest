@@ -1,0 +1,21 @@
+classes:
+- residential
+- commercial
+- industrial
+- civic
+- mixed_use
+- unknown
+predicted_classes:
+- civic
+- commercial
+- industrial
+- residential
+deferred_classes:
+- mixed_use
+render_colors:
+  residential: '#c19a6b'
+  commercial: '#4a8a82'
+  industrial: '#6b5d54'
+  civic: '#722f37'
+  mixed_use: '#b8893f'
+  unknown: '#a89c84'
