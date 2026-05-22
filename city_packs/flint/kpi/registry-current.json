@@ -1,0 +1,108 @@
+{
+  "city_pack": "flint",
+  "schema_version": "1.0.0",
+  "multipliers": [
+    {
+      "city_pack": "flint",
+      "multiplier_id": "residential_people_per_unit",
+      "value": 2.1,
+      "unit": "people/unit",
+      "source_name": "ACS 5-year household size assumption",
+      "source_url": "https://www.census.gov/programs-surveys/acs",
+      "source_vintage": "2024",
+      "applies_to": ["residential"],
+      "uncertainty_low": 1.8,
+      "uncertainty_high": 2.4,
+      "valid_from": "2024-01-01"
+    },
+    {
+      "city_pack": "flint",
+      "multiplier_id": "taxable_value_per_buildable_m2",
+      "value": 42.0,
+      "unit": "usd/m2/year",
+      "source_name": "Local comparable planning placeholder",
+      "source_url": "https://www.cityofflint.com",
+      "source_vintage": "2025",
+      "applies_to": ["mixed-use", "residential"],
+      "uncertainty_low": 30.0,
+      "uncertainty_high": 56.0,
+      "valid_from": "2025-01-01"
+    }
+  ],
+  "demographic_baselines": [
+    {
+      "city_pack": "flint",
+      "scope": "city",
+      "scope_id": "flint",
+      "metric_id": "population",
+      "value": 79661,
+      "unit": "people",
+      "source_name": "ACS 5-year demographic baseline",
+      "source_url": "https://www.census.gov/programs-surveys/acs",
+      "source_vintage": "2024",
+      "observed_at": "2024-07-01",
+      "uncertainty_low": 76000,
+      "uncertainty_high": 83500
+    },
+    {
+      "city_pack": "flint",
+      "scope": "city",
+      "scope_id": "flint",
+      "metric_id": "households",
+      "value": 33900,
+      "unit": "households",
+      "source_name": "ACS 5-year household baseline",
+      "source_url": "https://www.census.gov/programs-surveys/acs",
+      "source_vintage": "2024",
+      "observed_at": "2024-07-01",
+      "uncertainty_low": 32000,
+      "uncertainty_high": 35800
+    }
+  ],
+  "kpi_definitions": [
+    {
+      "city_pack": "flint",
+      "kpi_id": "population_capacity",
+      "scope": "city",
+      "display_name": "Population capacity",
+      "unit": "people",
+      "formula": "total_units * multiplier('residential_people_per_unit')",
+      "source_note": "Estimated units from buildable envelopes multiplied by ACS household-size assumption.",
+      "required_multipliers": ["residential_people_per_unit"],
+      "precision": 0
+    },
+    {
+      "city_pack": "flint",
+      "kpi_id": "buildable_floor_area",
+      "scope": "city",
+      "display_name": "Buildable floor area",
+      "unit": "m2",
+      "formula": "total_buildable_floor_area_m2",
+      "source_note": "Summed from scenario-aware buildable envelope rows.",
+      "required_multipliers": [],
+      "precision": 0
+    },
+    {
+      "city_pack": "flint",
+      "kpi_id": "tax_base_capacity",
+      "scope": "city",
+      "display_name": "Tax base capacity",
+      "unit": "usd/year",
+      "formula": "total_buildable_floor_area_m2 * multiplier('taxable_value_per_buildable_m2')",
+      "source_note": "Planning-scale floor area multiplied by a cited local comparable value assumption.",
+      "required_multipliers": ["taxable_value_per_buildable_m2"],
+      "precision": 0
+    },
+    {
+      "city_pack": "flint",
+      "kpi_id": "max_height",
+      "scope": "parcel",
+      "display_name": "Maximum buildable height",
+      "unit": "m",
+      "formula": "max_height_m",
+      "source_note": "Pulled from the parcel's scenario-aware zoning envelope row.",
+      "required_multipliers": [],
+      "precision": 1
+    }
+  ]
+}
