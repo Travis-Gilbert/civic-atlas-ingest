@@ -46,6 +46,18 @@ ml = [
     "torch-scatter>=2.1.2",
     "numpy>=1.26",
 ]
+# Phase A typology classifier stack. LightGBM + scikit-learn isotonic
+# calibration + pandera schema validation. Trained on Ray (RunPod);
+# the base `ray[serve,train]` dependency is already in the project's
+# core deps above. Spec: SPEC-PHASE-A-TYPOLOGY.md §1.
+typology = [
+    "lightgbm>=4.0",
+    "scikit-learn>=1.4",
+    "pandera>=0.20",
+    "pydantic>=2.0",
+    "duckdb>=0.10",
+    "joblib>=1.3",
+]
 
 [project.scripts]
 # Ray jobs are submitted with `ray job submit --working-dir . -- python -m ...`
