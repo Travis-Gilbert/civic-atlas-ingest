@@ -1,0 +1,199 @@
+{
+  "city": "flint",
+  "esri_dependency_policy": "ArcGIS REST endpoints are treated as public municipal HTTP/JSON sources only; OpenAtlas does not require Esri SDKs, ArcGIS Urban, CityEngine, or ArcGIS Runtime.",
+  "join_probe": {
+    "joined_count": 5,
+    "mismatched_count": 0,
+    "missing_pid_count": 0,
+    "parcel_query_url": "https://services5.arcgis.com/lqqWNtSxx8Akj04A/ArcGIS/rest/services/Main_COF_Parcel_view/FeatureServer/0/query?where=PIDdash+IS+NOT+NULL&outFields=FID%2CPIDdash%2CPIDText%2CZoning%2CLandUse&returnGeometry=true&outSR=4326&resultRecordCount=5&f=geojson",
+    "rows": [
+      {
+        "land_use_matches": true,
+        "parcel_land_use": "Green Neighborhood",
+        "parcel_zoning": "GN-1",
+        "pid_dash": "40-01-154-012",
+        "table_land_use": "Green Neighborhood",
+        "table_zoning": "GN-1",
+        "zoning_matches": true
+      },
+      {
+        "land_use_matches": true,
+        "parcel_land_use": "Green Neighborhood",
+        "parcel_zoning": "GN-1",
+        "pid_dash": "40-01-154-013",
+        "table_land_use": "Green Neighborhood",
+        "table_zoning": "GN-1",
+        "zoning_matches": true
+      },
+      {
+        "land_use_matches": true,
+        "parcel_land_use": "Green Neighborhood",
+        "parcel_zoning": "GN-1",
+        "pid_dash": "40-01-154-014",
+        "table_land_use": "Green Neighborhood",
+        "table_zoning": "GN-1",
+        "zoning_matches": true
+      },
+      {
+        "land_use_matches": true,
+        "parcel_land_use": "Green Neighborhood",
+        "parcel_zoning": "GN-1",
+        "pid_dash": "40-01-154-016",
+        "table_land_use": "Green Neighborhood",
+        "table_zoning": "GN-1",
+        "zoning_matches": true
+      },
+      {
+        "land_use_matches": true,
+        "parcel_land_use": "Green Neighborhood",
+        "parcel_zoning": "GN-1",
+        "pid_dash": "40-01-154-017",
+        "table_land_use": "Green Neighborhood",
+        "table_zoning": "GN-1",
+        "zoning_matches": true
+      }
+    ],
+    "sample_size": 5,
+    "zoning_query_url": "https://services5.arcgis.com/lqqWNtSxx8Akj04A/ArcGIS/rest/services/COF_Parcel_Zoning_Viewtbl/FeatureServer/0/query?where=PIDdash+in+%28%2740-01-154-012%27%2C%2740-01-154-013%27%2C%2740-01-154-014%27%2C%2740-01-154-016%27%2C%2740-01-154-017%27%29&outFields=FID2%2CPIDdash%2CCurrent_Zoning%2CCurrent_Landuse%2CPrevious_Zoning%2CWard&returnGeometry=false&resultRecordCount=5&f=json"
+  },
+  "layer_probes": [
+    {
+      "key": "flint-parcel-geometry-layer",
+      "max_record_count": 2000,
+      "missing_fields": [],
+      "observed_fields": [
+        "FID",
+        "PIDdash",
+        "PIDText",
+        "Zoning",
+        "LandUse"
+      ],
+      "query_url": "https://services5.arcgis.com/lqqWNtSxx8Akj04A/ArcGIS/rest/services/Main_COF_Parcel_view/FeatureServer/0/query?where=PIDdash+IS+NOT+NULL&outFields=FID%2CPIDdash%2CPIDText%2CZoning%2CLandUse&returnGeometry=true&outSR=4326&resultRecordCount=5&f=geojson",
+      "required_fields": [
+        "FID",
+        "PIDdash",
+        "PIDText",
+        "Zoning",
+        "LandUse"
+      ],
+      "supports_pagination": true,
+      "url": "https://services5.arcgis.com/lqqWNtSxx8Akj04A/ArcGIS/rest/services/Main_COF_Parcel_view/FeatureServer/0"
+    },
+    {
+      "key": "flint-parcel-zoning-table",
+      "max_record_count": 2000,
+      "missing_fields": [],
+      "observed_fields": [
+        "FID2",
+        "PIDdash",
+        "Current_Zoning",
+        "Current_Landuse",
+        "Previous_Zoning",
+        "Ward"
+      ],
+      "query_url": "https://services5.arcgis.com/lqqWNtSxx8Akj04A/ArcGIS/rest/services/COF_Parcel_Zoning_Viewtbl/FeatureServer/0/query?where=PIDdash+in+%28%2740-01-154-012%27%2C%2740-01-154-013%27%2C%2740-01-154-014%27%2C%2740-01-154-016%27%2C%2740-01-154-017%27%29&outFields=FID2%2CPIDdash%2CCurrent_Zoning%2CCurrent_Landuse%2CPrevious_Zoning%2CWard&returnGeometry=false&resultRecordCount=5&f=json",
+      "required_fields": [
+        "FID2",
+        "PIDdash",
+        "Current_Zoning",
+        "Current_Landuse",
+        "Previous_Zoning",
+        "Ward"
+      ],
+      "supports_pagination": true,
+      "url": "https://services5.arcgis.com/lqqWNtSxx8Akj04A/ArcGIS/rest/services/COF_Parcel_Zoning_Viewtbl/FeatureServer/0"
+    }
+  ],
+  "phase": "phase-c-zoning-envelope",
+  "retrieved_at": "2026-05-22T01:19:41.836975+00:00",
+  "source_snapshots": [
+    {
+      "byte_count": 160380,
+      "content_type": "text/html; charset=UTF-8",
+      "final_url": "https://www.cityofflint.com/zoning-division/",
+      "key": "flint-zoning-division-page",
+      "kind": "html",
+      "label": "City of Flint Zoning Division page",
+      "sha256": "fae275f89b96d446950623a02465d1655401d9bacabaebca159d25a866a9d6c6",
+      "status_code": 200,
+      "url": "https://www.cityofflint.com/zoning-division/"
+    },
+    {
+      "byte_count": 11016275,
+      "content_type": "application/pdf",
+      "final_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+      "key": "flint-zoning-code-2025-v1-5-1",
+      "kind": "pdf",
+      "label": "City of Flint Zoning Code v1.5.1",
+      "sha256": "b09cc85653d92b3c533ea65f870b43d3a7a1236c6bf46ce34934856fb9df505e",
+      "status_code": 200,
+      "url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf"
+    },
+    {
+      "byte_count": 900787,
+      "content_type": "application/pdf",
+      "final_url": "https://www.cityofflint.com/wp-content/uploads/2023/03/Article-8.pdf",
+      "key": "flint-zoning-article-8",
+      "kind": "pdf",
+      "label": "City of Flint zoning Article 8",
+      "sha256": "3fe99b54f3c7f0a6c33aec6aed8dc39a73ec97d8087d33f566d6f11b7d5eb0c9",
+      "status_code": 200,
+      "url": "https://www.cityofflint.com/wp-content/uploads/2023/03/Article-8.pdf"
+    },
+    {
+      "byte_count": 8805473,
+      "content_type": "application/pdf",
+      "final_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/Zoning-Map_2.6.25.pdf",
+      "key": "flint-zoning-map-2025-02-06",
+      "kind": "pdf",
+      "label": "City of Flint zoning map dated 2025-02-06",
+      "sha256": "2ed9c8c975220a27eba04c49b1a4855c8908756cf7de165912b03b8d6c9efb96",
+      "status_code": 200,
+      "url": "https://www.cityofflint.com/wp-content/uploads/2024/01/Zoning-Map_2.6.25.pdf"
+    },
+    {
+      "byte_count": 508630,
+      "content_type": "application/pdf",
+      "final_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf",
+      "key": "flint-comprehensive-use-table-2026-03-05",
+      "kind": "pdf",
+      "label": "City of Flint comprehensive use table dated 2026-03-05",
+      "sha256": "7cf114df3b27f349738cba233dcbaa5467d7fc73ee2d9d087957702d6717abbb",
+      "status_code": 200,
+      "url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+    },
+    {
+      "byte_count": 7981065,
+      "content_type": "application/pdf",
+      "final_url": "https://www.cityofflint.com/wp-content/uploads/2022/04/Quick-Reference-Guide-May-17_-2016_City-Edits_RS.pdf",
+      "key": "flint-zoning-quick-reference",
+      "kind": "pdf",
+      "label": "City of Flint zoning quick reference guide",
+      "sha256": "1507e063689e4085e08146021a69b41b9bb162ceb550c7b4132ec288c30e6f46",
+      "status_code": 200,
+      "url": "https://www.cityofflint.com/wp-content/uploads/2022/04/Quick-Reference-Guide-May-17_-2016_City-Edits_RS.pdf"
+    },
+    {
+      "byte_count": 29049,
+      "content_type": "application/json; charset=utf-8",
+      "final_url": "https://services5.arcgis.com/lqqWNtSxx8Akj04A/ArcGIS/rest/services/Main_COF_Parcel_view/FeatureServer/0?f=pjson",
+      "key": "flint-parcel-geometry-layer",
+      "kind": "arcgis-rest-metadata",
+      "label": "City of Flint parcel geometry layer metadata",
+      "sha256": "f33c029096991664d409b6d2d1727a8d38382ffeda7de8fc36cb5dd6e6c5e5cc",
+      "status_code": 200,
+      "url": "https://services5.arcgis.com/lqqWNtSxx8Akj04A/ArcGIS/rest/services/Main_COF_Parcel_view/FeatureServer/0?f=pjson"
+    },
+    {
+      "byte_count": 9630,
+      "content_type": "application/json; charset=utf-8",
+      "final_url": "https://services5.arcgis.com/lqqWNtSxx8Akj04A/ArcGIS/rest/services/COF_Parcel_Zoning_Viewtbl/FeatureServer/0?f=pjson",
+      "key": "flint-parcel-zoning-table",
+      "kind": "arcgis-rest-metadata",
+      "label": "City of Flint parcel zoning table metadata",
+      "sha256": "b777a797e32038630a6889f1d2871292f4d268aea10f2a63503c4185822f7637",
+      "status_code": 200,
+      "url": "https://services5.arcgis.com/lqqWNtSxx8Akj04A/ArcGIS/rest/services/COF_Parcel_Zoning_Viewtbl/FeatureServer/0?f=pjson"
+    }
+  ]
+}

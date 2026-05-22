@@ -32,6 +32,7 @@ Cargo.lock
 
 # Local-only artifacts
 artifacts/
+cache/
 data/
 fixtures-local/
 *.geojson.local

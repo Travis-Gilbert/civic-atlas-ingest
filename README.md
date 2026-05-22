@@ -12,6 +12,13 @@ the modules co-evolve.
 | `civic_atlas_ingest/ingest_*` | Phase 5: pull OSM / Sanborn / assessor data into typed corpus batches |
 | `civic_atlas_ingest/building_head_*` | Phase 6: train + serve the civic Pairformer building head |
 | `civic_atlas_ingest/scene_foundry.py` | Phase 3: render ReconstructionSpec -> glTF + IFC via Blender |
+| `civic_atlas_ingest/zoning_sources.py` | Phase C: snapshot official zoning sources and parcel/zoning joins |
+| `civic_atlas_ingest/zoning_ingest.py` | Phase C: transcribe current Flint zoning district rules |
+| `civic_atlas_ingest/zoning_schema.py` | Phase C: typed zoning rule, boundary, and envelope seed records |
+| `civic_atlas_ingest/envelope_edge_classifier.py` | Phase C: parcel edge classification from road-line snapshots |
+| `civic_atlas_ingest/road_network_sources.py` | Phase C: snapshot OSM road lines through OSMnx for setback classification |
+| `civic_atlas_ingest/envelope_compute.py` | Phase C: deterministic single-parcel envelope math |
+| `civic_atlas_ingest/envelope_batch.py` | Phase C: batch current-scenario envelope rows and edge spot-checks |
 | `primitives/`      | 8 Blender/procedural archetypes plus OpenBIM sidecar export      |
 | `crates/civic-atlas-validate/` | Rust CLI checking corpus records vs ReconstructionSpec |
 
@@ -149,6 +156,10 @@ Local smoke runs can use the built-in Ray fallback when Ray is not installed:
 ```bash
 python3 -m civic_atlas_ingest.ingest_overpass flint --limit 25
 python3 -m civic_atlas_ingest.ingest_assessor flint --limit 25
+python3 -m civic_atlas_ingest.zoning_sources --output city_packs/flint/zoning/source-manifest.json
+python3 -m civic_atlas_ingest.zoning_ingest --output city_packs/flint/zoning/rules-current.json
+python3 -m civic_atlas_ingest.road_network_sources --output city_packs/flint/zoning/road-network-current.json
+python3 -m civic_atlas_ingest.envelope_batch --limit 20 --no-assets
 python3 -m primitives.scripts.cli export-ifc commercial-brick-two-story spec.json out.ifc
 ```
 

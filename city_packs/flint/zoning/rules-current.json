@@ -1,0 +1,644 @@
+{
+  "city_pack": "flint",
+  "rule_count": 18,
+  "rules": [
+    {
+      "allowed_uses": [
+        "residential",
+        "civic",
+        "vacant_or_auxiliary"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "commercial"
+      ],
+      "confidence": 0.9,
+      "display_name": "Green Neighborhood-Low Density",
+      "max_far": null,
+      "max_height_m": 10.668,
+      "max_lot_coverage": 0.3,
+      "max_stories": 2.5,
+      "min_front_setback_m": 7.62,
+      "min_rear_setback_m": 7.62,
+      "min_side_setback_m": 4.572,
+      "payload": {
+        "notes": {
+          "coverage_exception": "non-residential use then 80%"
+        },
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-gn-1-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-24A Bulk and Site Standards: GN Districts",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "GN-1"
+    },
+    {
+      "allowed_uses": [
+        "residential",
+        "civic",
+        "vacant_or_auxiliary"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "commercial"
+      ],
+      "confidence": 0.85,
+      "display_name": "Green Neighborhood-Medium Density",
+      "max_far": null,
+      "max_height_m": 10.668,
+      "max_lot_coverage": 0.6,
+      "max_stories": 2.5,
+      "min_front_setback_m": 7.62,
+      "min_rear_setback_m": 7.62,
+      "min_side_setback_m": 1.524,
+      "payload": {
+        "notes": {
+          "coverage_exception": "non-residential use then 80%",
+          "setback_exception": "non-residential use has larger side setbacks and smaller rear setback"
+        },
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-gn-2-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-24A Bulk and Site Standards: GN Districts",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "GN-2"
+    },
+    {
+      "allowed_uses": [
+        "residential",
+        "civic",
+        "vacant_or_auxiliary"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "commercial"
+      ],
+      "confidence": 0.9,
+      "display_name": "Traditional Neighborhood-Low Density",
+      "max_far": null,
+      "max_height_m": 10.668,
+      "max_lot_coverage": 0.45,
+      "max_stories": 2.5,
+      "min_front_setback_m": 9.144,
+      "min_rear_setback_m": 10.668,
+      "min_side_setback_m": 3.048,
+      "payload": {
+        "notes": {},
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-tn-1-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-24B Bulk and Site Standards: TN Districts",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "TN-1"
+    },
+    {
+      "allowed_uses": [
+        "residential",
+        "civic",
+        "vacant_or_auxiliary"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "commercial"
+      ],
+      "confidence": 0.9,
+      "display_name": "Traditional Neighborhood-Medium Density",
+      "max_far": null,
+      "max_height_m": 10.668,
+      "max_lot_coverage": 0.6,
+      "max_stories": 2.5,
+      "min_front_setback_m": 6.096,
+      "min_rear_setback_m": 7.62,
+      "min_side_setback_m": 1.524,
+      "payload": {
+        "notes": {},
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-tn-2-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-24B Bulk and Site Standards: TN Districts",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "TN-2"
+    },
+    {
+      "allowed_uses": [
+        "residential",
+        "mixed_use",
+        "civic",
+        "vacant_or_auxiliary"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "commercial"
+      ],
+      "confidence": 0.85,
+      "display_name": "Mixed-Residential-Low Density",
+      "max_far": null,
+      "max_height_m": 10.668,
+      "max_lot_coverage": 0.7,
+      "max_stories": 2.5,
+      "min_front_setback_m": 6.096,
+      "min_rear_setback_m": 7.62,
+      "min_side_setback_m": 0.0,
+      "payload": {
+        "notes": {
+          "variant": "detached/two-family side setback is 2 ft; attached residential side setback is 0 ft"
+        },
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-mr-1-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-24C Bulk and Site Standards: MR-1 District",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "MR-1"
+    },
+    {
+      "allowed_uses": [
+        "residential",
+        "mixed_use",
+        "commercial",
+        "civic"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "industrial"
+      ],
+      "confidence": 0.8,
+      "display_name": "Mixed-Residential-Medium Density",
+      "max_far": null,
+      "max_height_m": 13.716,
+      "max_lot_coverage": 0.8,
+      "max_stories": 4,
+      "min_front_setback_m": 0.0,
+      "min_rear_setback_m": 6.096,
+      "min_side_setback_m": 0.0,
+      "payload": {
+        "notes": {
+          "variant": "lower residential forms are limited to 2.5 stories / 35 ft"
+        },
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-mr-2-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-24D Bulk Site Standards: MR-2 and MR-3 Districts",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "MR-2"
+    },
+    {
+      "allowed_uses": [
+        "residential",
+        "mixed_use",
+        "commercial",
+        "civic"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "industrial"
+      ],
+      "confidence": 0.8,
+      "display_name": "Mixed-Residential-High Density",
+      "max_far": null,
+      "max_height_m": 30.48,
+      "max_lot_coverage": 0.9,
+      "max_stories": null,
+      "min_front_setback_m": 0.0,
+      "min_rear_setback_m": 6.096,
+      "min_side_setback_m": 0.0,
+      "payload": {
+        "notes": {
+          "height_note": "table specifies max 100 ft and minimum 2 stories"
+        },
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-mr-3-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-24D Bulk Site Standards: MR-2 and MR-3 Districts",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "MR-3"
+    },
+    {
+      "allowed_uses": [
+        "commercial",
+        "mixed_use",
+        "residential",
+        "civic"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "industrial"
+      ],
+      "confidence": 0.8,
+      "display_name": "Neighborhood Center",
+      "max_far": null,
+      "max_height_m": 15.24,
+      "max_lot_coverage": null,
+      "max_stories": 4,
+      "min_front_setback_m": 0.0,
+      "min_rear_setback_m": 6.096,
+      "min_side_setback_m": 0.0,
+      "payload": {
+        "notes": {
+          "setback_exception": "interior side setback is 10 ft in wider lots against residential use"
+        },
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-nc-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-31A Lot and Bulk Standards: NC and CC Districts",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "NC"
+    },
+    {
+      "allowed_uses": [
+        "commercial",
+        "mixed_use",
+        "residential",
+        "civic"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "industrial"
+      ],
+      "confidence": 0.75,
+      "display_name": "City Corridor",
+      "max_far": null,
+      "max_height_m": 15.24,
+      "max_lot_coverage": null,
+      "max_stories": 4,
+      "min_front_setback_m": 0.0,
+      "min_rear_setback_m": 6.096,
+      "min_side_setback_m": 0.0,
+      "payload": {
+        "notes": {
+          "variant": "lots 140 ft deep or more have larger max front/corner and rear setbacks"
+        },
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-cc-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-31A Lot and Bulk Standards: NC and CC Districts",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "CC"
+    },
+    {
+      "allowed_uses": [
+        "commercial",
+        "mixed_use",
+        "residential",
+        "civic"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "industrial"
+      ],
+      "confidence": 0.8,
+      "display_name": "Downtown-Edge",
+      "max_far": null,
+      "max_height_m": 22.86,
+      "max_lot_coverage": null,
+      "max_stories": null,
+      "min_front_setback_m": 0.0,
+      "min_rear_setback_m": 0.0,
+      "min_side_setback_m": 0.0,
+      "payload": {
+        "notes": {
+          "setback_exception": "side/rear setbacks apply when against TN or MR district"
+        },
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-de-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-31B Lot and Bulk Standards: D-E and D-C Districts",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "DE"
+    },
+    {
+      "allowed_uses": [
+        "commercial",
+        "mixed_use",
+        "residential",
+        "civic"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "industrial"
+      ],
+      "confidence": 0.85,
+      "display_name": "Downtown-Core",
+      "max_far": null,
+      "max_height_m": 38.1,
+      "max_lot_coverage": null,
+      "max_stories": null,
+      "min_front_setback_m": 0.0,
+      "min_rear_setback_m": 0.0,
+      "min_side_setback_m": 0.0,
+      "payload": {
+        "notes": {
+          "height_note": "table specifies max 125 ft and min 35 ft"
+        },
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-dc-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-31B Lot and Bulk Standards: D-E and D-C Districts",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "DC"
+    },
+    {
+      "allowed_uses": [
+        "commercial",
+        "industrial",
+        "civic"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "mixed_use"
+      ],
+      "confidence": 0.75,
+      "display_name": "Commerce and Employment",
+      "max_far": null,
+      "max_height_m": null,
+      "max_lot_coverage": null,
+      "max_stories": null,
+      "min_front_setback_m": 3.048,
+      "min_rear_setback_m": 0.0,
+      "min_side_setback_m": 0.0,
+      "payload": {
+        "notes": {
+          "setback_exception": "larger setbacks apply abutting residential development"
+        },
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-ce-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-38 Employment Districts Bulk and Site Standards",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "CE"
+    },
+    {
+      "allowed_uses": [
+        "industrial",
+        "commercial",
+        "civic"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "mixed_use"
+      ],
+      "confidence": 0.75,
+      "display_name": "Production Center",
+      "max_far": null,
+      "max_height_m": null,
+      "max_lot_coverage": null,
+      "max_stories": null,
+      "min_front_setback_m": 9.144,
+      "min_rear_setback_m": 0.0,
+      "min_side_setback_m": 0.0,
+      "payload": {
+        "notes": {
+          "setback_exception": "larger setbacks apply abutting residential development"
+        },
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-pc-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-38 Employment Districts Bulk and Site Standards",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "PC"
+    },
+    {
+      "allowed_uses": [
+        "industrial",
+        "commercial",
+        "civic"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "mixed_use",
+        "residential"
+      ],
+      "confidence": 0.75,
+      "display_name": "Green Innovation-High Intensity",
+      "max_far": null,
+      "max_height_m": null,
+      "max_lot_coverage": null,
+      "max_stories": null,
+      "min_front_setback_m": 9.144,
+      "min_rear_setback_m": 7.62,
+      "min_side_setback_m": 9.144,
+      "payload": {
+        "notes": {},
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-gi-2-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-38 Employment Districts Bulk and Site Standards",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "GI-2"
+    },
+    {
+      "allowed_uses": [
+        "civic",
+        "residential",
+        "commercial"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "mixed_use"
+      ],
+      "confidence": 0.8,
+      "display_name": "Institutional Campus",
+      "max_far": null,
+      "max_height_m": 21.336,
+      "max_lot_coverage": null,
+      "max_stories": null,
+      "min_front_setback_m": 0.0,
+      "min_rear_setback_m": 0.0,
+      "min_side_setback_m": 0.0,
+      "payload": {
+        "notes": {
+          "setback_exception": "larger setbacks apply abutting or fronting on residential development"
+        },
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-ic-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-44 Institutional Districts Bulk and Site Standards",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "IC"
+    },
+    {
+      "allowed_uses": [
+        "civic",
+        "residential",
+        "mixed_use",
+        "commercial"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "industrial"
+      ],
+      "confidence": 0.7,
+      "display_name": "University Core",
+      "max_far": null,
+      "max_height_m": 21.336,
+      "max_lot_coverage": null,
+      "max_stories": null,
+      "min_front_setback_m": 3.048,
+      "min_rear_setback_m": 0.0,
+      "min_side_setback_m": 0.0,
+      "payload": {
+        "notes": {
+          "setback_exception": "height and setbacks reduce near TN/GN or residential ground-floor adjacency",
+          "variant": "district-wide height is 60 ft; University Avenue frontage may allow 70 ft with 2-story minimum"
+        },
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-uc-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-44 Institutional Districts Bulk and Site Standards",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "UC"
+    },
+    {
+      "allowed_uses": [
+        "industrial",
+        "commercial",
+        "civic",
+        "residential"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "mixed_use"
+      ],
+      "confidence": 0.65,
+      "display_name": "Green Innovation-Medium Intensity",
+      "max_far": null,
+      "max_height_m": 10.668,
+      "max_lot_coverage": 0.3,
+      "max_stories": 2.5,
+      "min_front_setback_m": 7.62,
+      "min_rear_setback_m": 7.62,
+      "min_side_setback_m": 4.572,
+      "payload": {
+        "notes": {
+          "variant": "GI-1 has residential and industrial rows; industrial row height is not clearly extractable from PDF text"
+        },
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-gi-1-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-44 Institutional Districts Bulk and Site Standards",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "GI-1"
+    },
+    {
+      "allowed_uses": [
+        "civic",
+        "vacant_or_auxiliary",
+        "commercial"
+      ],
+      "city_pack": "flint",
+      "conditional_uses": [
+        "industrial"
+      ],
+      "confidence": 0.8,
+      "display_name": "Open Space",
+      "max_far": null,
+      "max_height_m": null,
+      "max_lot_coverage": 0.35,
+      "max_stories": null,
+      "min_front_setback_m": 0.0,
+      "min_rear_setback_m": 9.144,
+      "min_side_setback_m": 4.572,
+      "payload": {
+        "notes": {},
+        "source_basis": "manual transcription from pdftotext extracted ordinance tables",
+        "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+        "use_policy": "allowed_uses and conditional_uses are Phase A typology hints, not a legal replacement for the Comprehensive Use Table P/S/A/ARU semantics",
+        "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf"
+      },
+      "rule_id": "us-mi-flint-os-current",
+      "source_key": "flint-zoning-code-2025-v1-5-1",
+      "source_section": "Table 50-50 Open Space District Bulk and Site Standards",
+      "valid_from": "2025-12-07",
+      "valid_to": null,
+      "zoning_code": "OS"
+    }
+  ],
+  "source_url": "https://www.cityofflint.com/wp-content/uploads/2024/01/2025-ZC-v1.5.1-Ord.-240459-T-Amendments-Minor-Corrections.pdf",
+  "use_table_url": "https://www.cityofflint.com/wp-content/uploads/2023/04/Comprehensive-Use-Table-3.5.26-1.pdf",
+  "use_table_valid_from": "2026-03-05",
+  "valid_from": "2025-12-07"
+}

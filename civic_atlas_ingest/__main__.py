@@ -5,6 +5,8 @@ Ray jobs are submitted via:
   ray job submit --working-dir . -- python -m civic_atlas_ingest.ingest_overpass detroit
   ray job submit --working-dir . -- python -m civic_atlas_ingest.ingest_sanborn 12345
   ray job submit --working-dir . -- python -m civic_atlas_ingest.ingest_assessor detroit
+  ray job submit --working-dir . -- python -m civic_atlas_ingest.road_network_sources
+  ray job submit --working-dir . -- python -m civic_atlas_ingest.envelope_batch
 
 This CLI is a thin discovery layer that prints the deployed targets
 and city queue. It is not the primary execution path.
@@ -37,6 +39,8 @@ def cities() -> None:
 def apps() -> None:
     """List Ray jobs and Serve deployments in this repo."""
     click.echo("civic_atlas_ingest/ingest_overpass.py -- OSM building footprints + tags")
+    click.echo("civic_atlas_ingest/road_network_sources.py -- OSM road snapshots for setbacks")
+    click.echo("civic_atlas_ingest/envelope_batch.py -- buildable envelope batch rows")
     click.echo("civic_atlas_ingest/ingest_sanborn.py -- Mapwarper Sanborn sheets")
     click.echo("civic_atlas_ingest/ingest_assessor.py -- per-city assessor records")
     click.echo("civic_atlas_ingest/building_head_train.py -- civic Pairformer training")

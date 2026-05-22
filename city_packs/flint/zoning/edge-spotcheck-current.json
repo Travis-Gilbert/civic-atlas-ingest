@@ -1,0 +1,231 @@
+{
+  "city_pack": "flint",
+  "corner_count": 5,
+  "retrieved_at": "2026-05-22T02:14:33.901678+00:00",
+  "rows": [
+    {
+      "front": "north",
+      "is_corner": true,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-154-033",
+      "pid_dash": "40-01-154-033",
+      "rear": "south",
+      "secondary_front": "east",
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "east",
+      "is_corner": true,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-154-036",
+      "pid_dash": "40-01-154-036",
+      "rear": "west",
+      "secondary_front": "south",
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "north",
+      "is_corner": true,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-155-001",
+      "pid_dash": "40-01-155-001",
+      "rear": "south",
+      "secondary_front": "west",
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "west",
+      "is_corner": true,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-155-003",
+      "pid_dash": "40-01-155-003",
+      "rear": "east",
+      "secondary_front": "south",
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "north",
+      "is_corner": true,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-155-017",
+      "pid_dash": "40-01-155-017",
+      "rear": "south",
+      "secondary_front": "east",
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "north",
+      "is_corner": false,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-101-001",
+      "pid_dash": "40-01-101-001",
+      "rear": "south",
+      "secondary_front": null,
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "north",
+      "is_corner": false,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-154-012",
+      "pid_dash": "40-01-154-012",
+      "rear": "south",
+      "secondary_front": null,
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "north",
+      "is_corner": false,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-154-013",
+      "pid_dash": "40-01-154-013",
+      "rear": "south",
+      "secondary_front": null,
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "north",
+      "is_corner": false,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-154-014",
+      "pid_dash": "40-01-154-014",
+      "rear": "south",
+      "secondary_front": null,
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "north",
+      "is_corner": false,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-154-016",
+      "pid_dash": "40-01-154-016",
+      "rear": "south",
+      "secondary_front": null,
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "north",
+      "is_corner": false,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-154-017",
+      "pid_dash": "40-01-154-017",
+      "rear": "south",
+      "secondary_front": null,
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "north",
+      "is_corner": false,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-154-018",
+      "pid_dash": "40-01-154-018",
+      "rear": "south",
+      "secondary_front": null,
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "south",
+      "is_corner": false,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-154-019",
+      "pid_dash": "40-01-154-019",
+      "rear": "north",
+      "secondary_front": null,
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "south",
+      "is_corner": false,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-154-020",
+      "pid_dash": "40-01-154-020",
+      "rear": "north",
+      "secondary_front": null,
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "south",
+      "is_corner": false,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-154-021",
+      "pid_dash": "40-01-154-021",
+      "rear": "north",
+      "secondary_front": null,
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "south",
+      "is_corner": false,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-154-022",
+      "pid_dash": "40-01-154-022",
+      "rear": "north",
+      "secondary_front": null,
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "south",
+      "is_corner": false,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-154-023",
+      "pid_dash": "40-01-154-023",
+      "rear": "north",
+      "secondary_front": null,
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "south",
+      "is_corner": false,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-154-024",
+      "pid_dash": "40-01-154-024",
+      "rear": "north",
+      "secondary_front": null,
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "south",
+      "is_corner": false,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-154-025",
+      "pid_dash": "40-01-154-025",
+      "rear": "north",
+      "secondary_front": null,
+      "warnings": [],
+      "zoning_code": "GN-1"
+    },
+    {
+      "front": "south",
+      "is_corner": false,
+      "land_use": "Green Neighborhood",
+      "parcel_key": "40-01-154-026",
+      "pid_dash": "40-01-154-026",
+      "rear": "north",
+      "secondary_front": null,
+      "warnings": [],
+      "zoning_code": "GN-1"
+    }
+  ],
+  "sample_size": 20,
+  "scenario_id": "current",
+  "skipped": [],
+  "source_policy": "Public parcel geometry and OSM road lines only; no owner/address fields or proprietary GIS runtime are included."
+}
