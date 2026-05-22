@@ -9,6 +9,7 @@ from civic_atlas_ingest.kpi_schema import (
     DemographicBaselineRecord,
     KPIDefinitionRecord,
     KPIResultRecord,
+    KPISourceCatalogRecord,
     MultiplierRecord,
 )
 
@@ -74,6 +75,37 @@ def test_demographic_baseline_validates_source_context() -> None:
     )
 
     assert baseline.scope_id == "ward-1"
+
+
+def test_kpi_source_catalog_record_requires_metric_and_geography_names() -> None:
+    source = KPISourceCatalogRecord(
+        city_pack="flint",
+        source_id="epa_smart_location",
+        name="Smart Location Database",
+        steward="U.S. EPA",
+        source_url="https://www.epa.gov/smartgrowth/smart-location-mapping",
+        access_pattern="public_download",
+        update_frequency="periodic",
+        geography=("block_group",),
+        candidate_metrics=("walkability_index",),
+        notes="Useful built-environment source.",
+    )
+
+    assert source.candidate_metrics == ("walkability_index",)
+
+    with pytest.raises(ValueError, match="candidate_metrics"):
+        KPISourceCatalogRecord(
+            city_pack="flint",
+            source_id="bad",
+            name="Bad",
+            steward="Bad",
+            source_url="https://example.com",
+            access_pattern="public_api",
+            update_frequency="annual",
+            geography=("tract",),
+            candidate_metrics=("",),
+            notes="bad",
+        )
 
 
 def test_kpi_result_requires_hash_and_uncertainty_bracket() -> None:

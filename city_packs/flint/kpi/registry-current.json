@@ -1,6 +1,128 @@
 {
   "city_pack": "flint",
   "schema_version": "1.0.0",
+  "kpi_source_catalog": [
+    {
+      "city_pack": "flint",
+      "source_id": "census_acs5_profile",
+      "name": "ACS 5-Year Data Profiles",
+      "steward": "U.S. Census Bureau",
+      "source_url": "https://api.census.gov/data/2024/acs/acs5/profile",
+      "access_pattern": "public_api",
+      "update_frequency": "annual",
+      "geography": ["place", "tract", "block_group"],
+      "candidate_metrics": [
+        "population_baseline",
+        "household_baseline",
+        "household_size",
+        "income_context",
+        "housing_tenure"
+      ],
+      "notes": "Core public demographic baseline for scenario-aware capacity and resident context metrics."
+    },
+    {
+      "city_pack": "flint",
+      "source_id": "census_lehd_lodes",
+      "name": "LEHD Origin-Destination Employment Statistics",
+      "steward": "U.S. Census Bureau",
+      "source_url": "https://lehd.ces.census.gov/data/#lodes",
+      "access_pattern": "public_download",
+      "update_frequency": "annual",
+      "geography": ["census_block"],
+      "candidate_metrics": [
+        "jobs_access",
+        "workplace_density",
+        "commute_flows",
+        "employment_mix"
+      ],
+      "notes": "Block-level job and origin-destination files can turn scenarios into access-to-jobs and daytime-population estimates."
+    },
+    {
+      "city_pack": "flint",
+      "source_id": "epa_smart_location",
+      "name": "Smart Location Database and National Walkability Index",
+      "steward": "U.S. Environmental Protection Agency",
+      "source_url": "https://www.epa.gov/smartgrowth/smart-location-mapping",
+      "access_pattern": "public_download",
+      "update_frequency": "periodic",
+      "geography": ["block_group"],
+      "candidate_metrics": [
+        "walkability_index",
+        "intersection_density",
+        "transit_access",
+        "destination_access"
+      ],
+      "notes": "Built-environment indicators useful for scenario tradeoffs around walkability, infill suitability, and access."
+    },
+    {
+      "city_pack": "flint",
+      "source_id": "epa_ejscreen",
+      "name": "EJScreen",
+      "steward": "U.S. Environmental Protection Agency",
+      "source_url": "https://www.epa.gov/ejscreen",
+      "access_pattern": "public_download",
+      "update_frequency": "annual",
+      "geography": ["block_group"],
+      "candidate_metrics": [
+        "environmental_burden",
+        "air_quality_context",
+        "demographic_vulnerability",
+        "scenario_equity_screen"
+      ],
+      "notes": "Environmental and demographic indicators can bound whether a future scenario shifts burdens toward already stressed places."
+    },
+    {
+      "city_pack": "flint",
+      "source_id": "hud_usps_vacancy",
+      "name": "HUD Aggregated USPS Address Vacancy Data",
+      "steward": "U.S. Department of Housing and Urban Development",
+      "source_url": "https://www.huduser.gov/portal/datasets/usps.html",
+      "access_pattern": "registration_required_api",
+      "update_frequency": "quarterly",
+      "geography": ["tract"],
+      "candidate_metrics": [
+        "vacancy_rate",
+        "no_stat_rate",
+        "residential_address_count",
+        "neighborhood_change"
+      ],
+      "notes": "Potentially powerful vacancy/change signal, but access and use are restricted to registered eligible users and must stay backend-only."
+    },
+    {
+      "city_pack": "flint",
+      "source_id": "census_tiger_geocoder",
+      "name": "TIGERweb and Census Geocoder",
+      "steward": "U.S. Census Bureau",
+      "source_url": "https://www.census.gov/data/developers/guidance/api-user-guide.html",
+      "access_pattern": "public_api",
+      "update_frequency": "periodic",
+      "geography": ["address", "tract", "block_group", "block", "place"],
+      "candidate_metrics": [
+        "geographic_join_key",
+        "tract_assignment",
+        "block_group_assignment",
+        "place_boundary_assignment"
+      ],
+      "notes": "Join infrastructure for translating parcels, addresses, and scenario geometry into census geographies."
+    },
+    {
+      "city_pack": "flint",
+      "source_id": "fhwa_hpms",
+      "name": "Highway Performance Monitoring System",
+      "steward": "Federal Highway Administration",
+      "source_url": "https://highways.dot.gov/safety/data-analysis-tools/rsdp/rsdp-tools/highway-performance-monitoring-system-hpms",
+      "access_pattern": "public_download",
+      "update_frequency": "annual",
+      "geography": ["road_segment", "state", "county"],
+      "candidate_metrics": [
+        "vehicle_miles_traveled",
+        "roadway_functional_class",
+        "infrastructure_load",
+        "traffic_exposure"
+      ],
+      "notes": "Transportation baseline for scenario infrastructure load and VMT context; local road-segment joins need careful conflation."
+    }
+  ],
   "multipliers": [
     {
       "city_pack": "flint",

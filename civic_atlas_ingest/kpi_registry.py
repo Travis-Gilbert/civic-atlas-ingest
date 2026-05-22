@@ -7,7 +7,12 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from .kpi_schema import DemographicBaselineRecord, KPIDefinitionRecord, MultiplierRecord
+from .kpi_schema import (
+    DemographicBaselineRecord,
+    KPIDefinitionRecord,
+    KPISourceCatalogRecord,
+    MultiplierRecord,
+)
 
 
 def load_kpi_registry(
@@ -36,6 +41,16 @@ def load_demographic_baselines(path: Path) -> tuple[DemographicBaselineRecord, .
     if not isinstance(rows, list):
         raise ValueError("demographic_baselines must be a list")
     return tuple(_demographic_from_json(row) for row in rows)
+
+
+def load_kpi_source_catalog(path: Path) -> tuple[KPISourceCatalogRecord, ...]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("KPI registry must be a JSON object")
+    rows = payload.get("kpi_source_catalog", [])
+    if not isinstance(rows, list):
+        raise ValueError("kpi_source_catalog must be a list")
+    return tuple(_source_catalog_from_json(row) for row in rows)
 
 
 def _definition_from_json(row: Any) -> KPIDefinitionRecord:
@@ -93,6 +108,24 @@ def _demographic_from_json(row: Any) -> DemographicBaselineRecord:
         observed_at=_required_date(row["observed_at"]),
         uncertainty_low=_optional_float(row.get("uncertainty_low")),
         uncertainty_high=_optional_float(row.get("uncertainty_high")),
+        payload=dict(row.get("payload", {})),
+    )
+
+
+def _source_catalog_from_json(row: Any) -> KPISourceCatalogRecord:
+    if not isinstance(row, dict):
+        raise ValueError("KPI source catalog rows must be objects")
+    return KPISourceCatalogRecord(
+        city_pack=str(row["city_pack"]),
+        source_id=str(row["source_id"]),
+        name=str(row["name"]),
+        steward=str(row["steward"]),
+        source_url=str(row["source_url"]),
+        access_pattern=row["access_pattern"],
+        update_frequency=str(row["update_frequency"]),
+        geography=tuple(str(item) for item in row.get("geography", [])),
+        candidate_metrics=tuple(str(item) for item in row.get("candidate_metrics", [])),
+        notes=str(row["notes"]),
         payload=dict(row.get("payload", {})),
     )
 

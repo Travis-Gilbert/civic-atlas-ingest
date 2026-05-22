@@ -8,6 +8,11 @@ from datetime import date, datetime
 from typing import Any, Literal
 
 KPIScope = Literal["parcel", "block", "ward", "city"]
+KPIAccessPattern = Literal[
+    "public_api",
+    "public_download",
+    "registration_required_api",
+]
 
 
 @dataclass(frozen=True)
@@ -94,6 +99,34 @@ class DemographicBaselineRecord:
         _require_text(self.source_url, "source_url")
         _require_text(self.source_vintage, "source_vintage")
         _require_range(self.uncertainty_low, self.uncertainty_high, "uncertainty")
+
+
+@dataclass(frozen=True)
+class KPISourceCatalogRecord:
+    city_pack: str
+    source_id: str
+    name: str
+    steward: str
+    source_url: str
+    access_pattern: KPIAccessPattern
+    update_frequency: str
+    geography: tuple[str, ...]
+    candidate_metrics: tuple[str, ...]
+    notes: str
+    payload: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        _require_text(self.city_pack, "city_pack")
+        _require_text(self.source_id, "source_id")
+        _require_text(self.name, "name")
+        _require_text(self.steward, "steward")
+        _require_text(self.source_url, "source_url")
+        _require_text(self.update_frequency, "update_frequency")
+        _require_text(self.notes, "notes")
+        if any(not geography.strip() for geography in self.geography):
+            raise ValueError("geography cannot contain blank values")
+        if any(not metric.strip() for metric in self.candidate_metrics):
+            raise ValueError("candidate_metrics cannot contain blank values")
 
 
 @dataclass(frozen=True)

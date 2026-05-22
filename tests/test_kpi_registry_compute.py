@@ -5,7 +5,11 @@ from pathlib import Path
 import pytest
 
 from civic_atlas_ingest.kpi_compute import KPIComputationInput, compute_kpi_bundle
-from civic_atlas_ingest.kpi_registry import load_demographic_baselines, load_kpi_registry
+from civic_atlas_ingest.kpi_registry import (
+    load_demographic_baselines,
+    load_kpi_registry,
+    load_kpi_source_catalog,
+)
 
 
 def test_load_kpi_registry_validates_multiplier_references() -> None:
@@ -62,6 +66,16 @@ def test_load_demographic_baselines_preserves_source_context() -> None:
     assert by_id["population"].source_name.startswith("ACS")
     assert by_id["population"].uncertainty_low == 76000
     assert by_id["households"].unit == "households"
+
+
+def test_load_kpi_source_catalog_tracks_candidate_public_sources() -> None:
+    sources = load_kpi_source_catalog(Path("city_packs/flint/kpi/registry-current.json"))
+    by_id = {row.source_id: row for row in sources}
+
+    assert by_id["epa_smart_location"].access_pattern == "public_download"
+    assert "walkability_index" in by_id["epa_smart_location"].candidate_metrics
+    assert by_id["hud_usps_vacancy"].access_pattern == "registration_required_api"
+    assert "tract" in by_id["census_tiger_geocoder"].geography
 
 
 def test_load_kpi_registry_rejects_missing_multiplier(tmp_path) -> None:
