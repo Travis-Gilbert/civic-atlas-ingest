@@ -1,26 +1,34 @@
-"""Ray task: ingest Sanborn fire insurance map sheets via Mapwarper.
+"""Ray tasks: ingest Sanborn fire insurance map sheets.
 
-Status: skeleton. Real implementation is pending finalization of
-the BuildingPresence / ArtifactAnchor proto and a Sanborn color-key
-decoder (see docs/sanborn-key.md, TODO).
+Two code paths:
 
-Mapwarper hosts georeferenced Sanborn sheets contributed by NYPL,
-LOC, and others. For each sheet:
+  - `ingest_sheet`: pull a sheet from Mapwarper by ID, emit ONE
+    sheet-anchor record. Older path, still useful for sheets only
+    available on Mapwarper.
 
-  1. Fetch the georeferenced TIFF + the warp metadata.
-  2. Vectorize buildings via a Sanborn-color decoder. Sanborn uses
-     a known color key: yellow=wood frame, pink/red=brick, blue=stone,
-     gray=iron, brown=adobe. Story counts are printed in each polygon.
-  3. OCR the story count digits in each polygon. Confidence is low,
-     so coverage_quality is held to PRIMARY_ARCHIVAL ceiling.
-  4. Emit per-sheet GeoJSON to a RunPod-mounted volume or object-store prefix
-     for human spot-check.
-  5. With `--commit-to-postgis`, write BuildingPresence +
-     ArtifactAnchor records under tenant_id='corpus' for each
-     vectorized polygon.
+  - `ingest_local_sheet`: ingest a locally-held Sanborn raster
+    (LoC public-domain TIFFs, UM-Flint GIS Center scans, project-
+    owner private holdings). Runs the full color-decode →
+    vectorize → georef → per-polygon TrainingCorpusRecord pipeline.
+    THIS is the path that populates DecodedArtifact rows at scale.
+
+Sanborn color key (encoded by `sanborn_color_decoder.DEFAULT_BANDS`):
+
+    yellow → wood frame   pink/red → brick   blue → stone
+    gray   → iron/steel   brown    → adobe   olive → special combustible
+    black  → labels / lot lines    white    → paper background
+
+Story counts are printed digits inside each polygon. The vectorizer
+calls `sanborn_vectorize.extract_story_count` (Tesseract-backed,
+graceful fallback when missing).
 
 Run:
+    # Mapwarper path:
     ray job submit --working-dir . -- python -m civic_atlas_ingest.ingest_sanborn 12345
+
+    # Local sheet path:
+    ray job submit --working-dir . -- python -m civic_atlas_ingest.ingest_sanborn \\
+        --local-georef path/to/flint-1925-03.georef.json
 
 Environment:
     MAPWARPER_BASE_URL          override Mapwarper instance (default mapwarper.net)
@@ -34,13 +42,31 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 from typing import Any
 
 from .coverage_quality import ProvenanceLane
 from .runtime import ensure_ray_initialized, ray
-from .training_corpus import bbox_polygon, make_training_record, write_training_batch
+from .training_corpus import (
+    TrainingCorpusRecord,
+    bbox_polygon,
+    make_training_record,
+    write_training_batch,
+)
 
 DEFAULT_MAPWARPER_BASE = "https://mapwarper.net"
+
+# Map MaterialCode integer → field-friendly material string.
+# Keys are written as strings so the module imports without forcing
+# the color-decoder module load at import time (it pulls numpy).
+_MATERIAL_NAME_BY_CODE: dict[int, str] = {
+    1: "wood_frame",
+    2: "brick",
+    3: "stone",
+    4: "iron",
+    5: "adobe",
+    6: "special_combustible",
+}
 
 
 @ray.remote(num_cpus=4, memory=8 * 1024 * 1024 * 1024)
@@ -81,6 +107,190 @@ def ingest_sheet(
         "review_required": True,
         "batch": batch.to_json(),
     }
+
+
+def _ingest_local_sheet_impl(
+    georef_json: str,
+    *,
+    output_uri: str | None = None,
+    dry_run: bool = True,
+    commit_to_postgis: bool = False,
+    enable_ocr: bool = True,
+    city: str = "flint",
+) -> dict[str, Any]:
+    """Pure-function body of `ingest_local_sheet`. Split out from the
+    Ray-decorated function so tests can call this directly without
+    `ray.init()`.
+
+    Pipeline:
+      1. Load the georeferencing JSON (sheet_id, year, source, and
+         pixel-to-geo transform via bbox or control points).
+      2. Read the raster (TIFF/PNG/JPEG) via PIL.
+      3. HSV-classify pixels by Sanborn material (color decoder).
+      4. Vectorize same-material connected components into polygons.
+      5. For each polygon: extract story count via OCR (best-effort),
+         transform pixel polygon → lat/lng polygon via affine.
+      6. Emit one TrainingCorpusRecord per polygon, all tagged
+         ProvenanceLane.PRIMARY_ARCHIVAL.
+      7. Write the batch via training_corpus.write_training_batch.
+
+    `georef_json`: path to a sheet-georef JSON (or the JSON string
+    itself, when called directly). See `sanborn_georef` for the
+    shape spec.
+
+    Returns metrics + the batch result. `dry_run=True` writes only
+    the local spot-check files; `commit_to_postgis=True` requires
+    PostGIS commit wiring (currently `not-wired` — see the audit
+    doc for the gating ArtifactAnchor proto work).
+    """
+    if dry_run and commit_to_postgis:
+        raise ValueError("cannot dry_run AND commit_to_postgis simultaneously")
+
+    # Local imports so the Mapwarper path doesn't pay the numpy /
+    # PIL / rasterio import cost when it isn't used.
+    import numpy as np
+    from PIL import Image
+
+    from .sanborn_color_decoder import classify_pixels, classification_summary
+    from .sanborn_georef import load_georeference, parse_georeference, transform_polygon
+    from .sanborn_vectorize import (
+        extract_polygons,
+        extract_story_count,
+        iter_polygon_regions,
+    )
+
+    # Accept either a path to a JSON file or the JSON content
+    # directly (the @-prefix convention from training_corpus is
+    # already supported by _read_arg_or_path).
+    if Path(georef_json).exists():
+        georef = load_georeference(Path(georef_json))
+    else:
+        payload = json.loads(_read_arg_or_path(georef_json))
+        georef = parse_georeference(payload, base_dir=Path.cwd())
+
+    # Load the raster as a uint8 RGB array. Pillow handles TIFF,
+    # PNG, and JPEG; rasterio could read GeoTIFFs more efficiently
+    # but Sanborn scans are typically plain RGB rasters.
+    with Image.open(georef.image_path) as image:
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+        rgb = np.array(image)
+
+    # Color-decode the entire raster.
+    classified = classify_pixels(rgb)
+    summary = classification_summary(classified)
+
+    # Vectorize the material-classified raster into polygons.
+    polygon_records = extract_polygons(classified)
+
+    # Build one TrainingCorpusRecord per polygon.
+    records: list[TrainingCorpusRecord] = []
+    polygon_iter = iter_polygon_regions(rgb, polygon_records) if enable_ocr else iter(())
+    if enable_ocr:
+        story_count_by_index: dict[int, int | None] = {}
+        for poly_record, patch in polygon_iter:
+            idx = polygon_records.index(poly_record)
+            story_count_by_index[idx] = extract_story_count(patch)
+    else:
+        story_count_by_index = {}
+
+    sheet_year = georef.year
+    sheet_id = georef.sheet_id
+    sheet_source = georef.source
+
+    for idx, poly_record in enumerate(polygon_records):
+        material_name = _MATERIAL_NAME_BY_CODE.get(int(poly_record.material), "unknown")
+        story_count = story_count_by_index.get(idx)
+        geo_polygon = transform_polygon(poly_record.polygon_pixel, georef)
+
+        fields: dict[str, Any] = {
+            "building": "yes",
+            "primary_material": material_name,
+            "start_date_raw": str(sheet_year),
+            "display_name": f"Sanborn polygon {sheet_id}:{idx}",
+        }
+        if story_count is not None:
+            fields["stories"] = story_count
+
+        lanes: dict[str, ProvenanceLane | list[ProvenanceLane]] = {
+            "building": ProvenanceLane.PRIMARY_ARCHIVAL,
+            "primary_material": ProvenanceLane.PRIMARY_ARCHIVAL,
+            "start_date_raw": ProvenanceLane.PRIMARY_ARCHIVAL,
+            "display_name": ProvenanceLane.PRIMARY_ARCHIVAL,
+        }
+        if story_count is not None:
+            lanes["stories"] = ProvenanceLane.PRIMARY_ARCHIVAL
+
+        records.append(
+            make_training_record(
+                source="sanborn",
+                source_id=f"{sheet_id}:polygon:{idx}",
+                city=city,
+                geometry=geo_polygon,
+                fields=fields,
+                lanes=lanes,
+                source_uri=georef.source_uri,
+                extra={
+                    "sheet_id": sheet_id,
+                    "sheet_year": sheet_year,
+                    "sheet_source": sheet_source,
+                    "material_code": int(poly_record.material),
+                    "area_pixels": poly_record.area_pixels,
+                    "bbox_pixel": list(poly_record.bbox_pixel),
+                    "polygon_index_in_sheet": idx,
+                    "ocr_attempted": enable_ocr,
+                    "vectorization_status": "per_polygon",
+                    "review_required": True,
+                },
+            )
+        )
+
+    batch = write_training_batch(records, source="sanborn", output_uri=output_uri)
+    mean_quality = (
+        sum(r.coverage.quality for r in records) / len(records) if records else 0.0
+    )
+    return {
+        "sheet_id": sheet_id,
+        "sheet_year": sheet_year,
+        "image_path": str(georef.image_path),
+        "image_dims": [georef.image_width, georef.image_height],
+        "polygons": len(records),
+        "mean_coverage_quality": round(mean_quality, 4),
+        "color_classification_summary": summary,
+        "spotcheck_path": str(batch.local_dir),
+        "records_emitted": len(records),
+        "records_written": 0,
+        "commit_to_postgis": commit_to_postgis,
+        "postgis_status": "not-wired",
+        "review_required": True,
+        "batch": batch.to_json(),
+    }
+
+
+@ray.remote(num_cpus=4, memory=8 * 1024 * 1024 * 1024)
+def ingest_local_sheet(
+    georef_json: str,
+    *,
+    output_uri: str | None = None,
+    dry_run: bool = True,
+    commit_to_postgis: bool = False,
+    enable_ocr: bool = True,
+    city: str = "flint",
+) -> dict[str, Any]:
+    """Ray-decorated wrapper around `_ingest_local_sheet_impl`.
+
+    The actual logic lives in the implementation function for testability;
+    this wrapper exists so callers can do `ingest_local_sheet.remote(...)`
+    against a Ray cluster.
+    """
+    return _ingest_local_sheet_impl(
+        georef_json=georef_json,
+        output_uri=output_uri,
+        dry_run=dry_run,
+        commit_to_postgis=commit_to_postgis,
+        enable_ocr=enable_ocr,
+        city=city,
+    )
 
 
 @ray.remote(num_cpus=2, memory=4 * 1024 * 1024 * 1024)
@@ -215,16 +425,55 @@ def _read_arg_or_path(value: str) -> str:
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Local entrypoint for `ray job submit` or direct local smoke runs."""
-    parser = argparse.ArgumentParser(description="Ingest a Mapwarper Sanborn sheet")
+    """Local entrypoint for `ray job submit` or direct local smoke runs.
+
+    Two routes:
+      - Pass a positional `sheet_id` (Mapwarper integer) to use the
+        Mapwarper fetch path. Emits one sheet-anchor record.
+      - Pass `--local-georef path/to/sheet.georef.json` to run the
+        full local color-decode + vectorize + per-polygon ingest.
+    """
+    parser = argparse.ArgumentParser(description="Ingest a Sanborn sheet")
     parser.add_argument("sheet_id", nargs="?", type=int, default=0)
     parser.add_argument("--output-uri", default=None)
     parser.add_argument("--fixture-json", default=None)
+    parser.add_argument(
+        "--local-georef",
+        default=None,
+        help="Path to a sheet-georef JSON (see sanborn_georef for shape).",
+    )
+    parser.add_argument(
+        "--city",
+        default="flint",
+        help="City slug for the emitted training records (default: flint).",
+    )
+    parser.add_argument(
+        "--disable-ocr",
+        action="store_true",
+        help="Skip Tesseract story-count extraction (still runs vectorization).",
+    )
     parser.add_argument("--commit-to-postgis", action="store_true")
     args = parser.parse_args(argv)
 
+    if args.local_georef:
+        ensure_ray_initialized()
+        result = ray.get(
+            ingest_local_sheet.remote(
+                georef_json=args.local_georef,
+                output_uri=args.output_uri,
+                dry_run=not args.commit_to_postgis,
+                commit_to_postgis=args.commit_to_postgis,
+                enable_ocr=not args.disable_ocr,
+                city=args.city,
+            )
+        )
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return
+
     if args.sheet_id == 0:
-        print("Pass --sheet-id <id>. Use list_sheets_for_bbox to discover IDs.")
+        print(
+            "Pass --sheet-id <Mapwarper-id> OR --local-georef path/to/sheet.georef.json"
+        )
         return
     ensure_ray_initialized()
     result = ray.get(
