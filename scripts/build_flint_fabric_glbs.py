@@ -31,9 +31,24 @@ Usage:
 
     cd civic-atlas-ingest
     ray job submit --working-dir . -- python -m scripts.build_flint_fabric_glbs \\
-        [--limit N]          # only render the first N buildings
-        [--dry-run]          # build specs but don't submit to Ray
-        [--out PATH]         # override fixture path
+        [--limit N]                       # only render the first N buildings
+        [--sample-strategy STRATEGY]      # first | random | stratified (default first)
+        [--dry-run]                       # build specs but don't submit to Ray
+        [--local-blender]                 # shell to local blender instead of Ray
+        [--local-blender-out PATH]        # local-blender GLB output dir
+        [--out PATH]                      # override manifest path
+
+Stratified sampling exercises every Phase B builder roughly evenly,
+which is what you want for a small validation batch (e.g. --limit 400):
+each archetype family gets a turn so a broken builder for one family
+can't hide behind the dominance of single-family residentials in the
+overall corpus.
+
+--local-blender bypasses Ray entirely and shells to a local `blender`
+binary, writing GLBs to --local-blender-out instead of S3. The
+intended use is a one-shot validation pass on a developer laptop
+before paying for cluster time. Output manifest still serializes the
+same shape; `glb_uri` carries the local path with a `file://` prefix.
 """
 
 from __future__ import annotations
@@ -42,6 +57,7 @@ import argparse
 import json
 import math
 import os
+import random
 import sys
 import time
 from pathlib import Path
@@ -55,6 +71,7 @@ from civic_atlas_ingest.fabric_archetype_mapping import (
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_LOCAL_BLENDER_OUT = REPO_ROOT / "build" / "local_blender_glbs"
 
 OPEN_FLINT_ATLAS_ROOT = Path(
     "/Users/travisgilbert/Tech Dev Local/Creative/Website/Open-Flint-Atlas-main-release"
@@ -81,7 +98,47 @@ DEFAULT_OUT_PATH = (
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument(
+        "--sample-strategy",
+        choices=("first", "random", "stratified"),
+        default="first",
+        help=(
+            "How --limit picks rows from the fixture. 'first' takes "
+            "fixture order (deterministic, fast, but biased by however "
+            "the fixture happens to be sorted). 'random' uniform-samples "
+            "rows. 'stratified' first builds specs for every row, then "
+            "picks limit/N rows from each archetype family so every "
+            "Phase B builder gets exercised in the sample. Stratified "
+            "is the right default for small validation batches."
+        ),
+    )
+    parser.add_argument(
+        "--sample-seed",
+        type=int,
+        default=42,
+        help="Seed for random / stratified sampling. Stable across runs.",
+    )
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--local-blender",
+        action="store_true",
+        help=(
+            "Bypass Ray entirely. Shell to local `blender` for each "
+            "spec, write GLBs to --local-blender-out, and emit a "
+            "manifest with file:// URIs in place of s3:// URIs. "
+            "Intended use: validate the Blender builder catalog on a "
+            "developer laptop before booking cluster time."
+        ),
+    )
+    parser.add_argument(
+        "--local-blender-out",
+        type=Path,
+        default=DEFAULT_LOCAL_BLENDER_OUT,
+        help=(
+            "Local directory for --local-blender mode's GLB / IFC "
+            "output. Created if missing."
+        ),
+    )
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT_PATH)
     parser.add_argument(
         "--osm-fixture", type=Path, default=OSM_FIXTURE_PATH,
@@ -92,8 +149,16 @@ def main() -> int:
     print(f"Reading {args.osm_fixture}", flush=True)
     osm = json.loads(args.osm_fixture.read_text())
     features = osm.get("features", [])
-    if args.limit > 0:
+    # Pre-stratified sampling happens AFTER spec build so we can group
+    # by archetype. For 'first' / 'random', we shrink the feature list
+    # up-front to avoid building 17k specs when only N are needed.
+    if args.sample_strategy == "first" and args.limit > 0:
         features = features[: args.limit]
+    elif args.sample_strategy == "random" and args.limit > 0:
+        rng = random.Random(args.sample_seed)
+        if args.limit < len(features):
+            features = rng.sample(features, args.limit)
+    # 'stratified': keep all features, sample after spec build below.
     print(f"Processing {len(features)} buildings", flush=True)
 
     # Build specs in pure Python (no Ray dependency for the spec build).
@@ -114,6 +179,15 @@ def main() -> int:
             continue
         spec_json = fabric_decision_to_spec_json(osm_id=osm_id, decision=decision)
         specs.append((str(osm_id), decision, spec_json))
+
+    # Stratified sampling runs after spec build because it groups by
+    # phase_b_slug, which is only known once map_fabric_to_phase_b has
+    # been called inside _build_decision_for_feature.
+    if args.sample_strategy == "stratified" and args.limit > 0 and args.limit < len(specs):
+        specs = _stratified_sample(specs, args.limit, args.sample_seed)
+        print(
+            f"  stratified sample reduced spec count to {len(specs)}", flush=True
+        )
 
     print(
         f"  built {len(specs)} specs ready to render; "
@@ -153,6 +227,14 @@ def main() -> int:
         args.out.write_text(json.dumps(dry_manifest, indent=2))
         print(f"  wrote dry-run manifest to {args.out}", flush=True)
         return 0
+
+    if args.local_blender:
+        return _run_local_blender_batch(
+            specs=specs,
+            archetype_counts=archetype_counts,
+            out_dir=args.local_blender_out,
+            manifest_path=args.out,
+        )
 
     # Ray submission path. Import here so --dry-run works without Ray.
     print("\nSubmitting Ray render jobs...", flush=True)
@@ -233,6 +315,162 @@ def main() -> int:
     args.out.write_text(json.dumps(manifest, indent=2))
     print(f"  wrote {args.out}", flush=True)
     return 0
+
+
+# ── Sampling helper ─────────────────────────────────────────────────
+
+
+def _stratified_sample(
+    specs: list[tuple[str, FabricMappingDecision, dict[str, Any]]],
+    target_count: int,
+    seed: int,
+) -> list[tuple[str, FabricMappingDecision, dict[str, Any]]]:
+    """Sample specs so every archetype family contributes proportionally.
+
+    Splits target_count evenly across the archetypes present in
+    `specs`, then random-samples that quota from each archetype's
+    bucket (with replacement-free sampling within each archetype).
+    Quotas are clipped to bucket size so archetypes with fewer than
+    quota members contribute all of theirs; the remainder gets
+    redistributed across archetypes that still have headroom.
+
+    Deterministic given the same `seed`. Returns a new list with
+    fixture-order ordering broken (re-ordered by archetype to make
+    the resulting render batch's archetype distribution easy to read
+    in the manifest).
+    """
+    rng = random.Random(seed)
+    by_archetype: dict[str, list[tuple[str, FabricMappingDecision, dict[str, Any]]]] = {}
+    for entry in specs:
+        slug = entry[1].phase_b_slug
+        by_archetype.setdefault(slug, []).append(entry)
+
+    archetypes = sorted(by_archetype.keys())
+    if not archetypes:
+        return []
+    base_quota = max(1, target_count // len(archetypes))
+    remaining = target_count
+    sampled: list[tuple[str, FabricMappingDecision, dict[str, Any]]] = []
+    headroom: dict[str, list[tuple[str, FabricMappingDecision, dict[str, Any]]]] = {}
+    for slug in archetypes:
+        bucket = by_archetype[slug]
+        take = min(base_quota, len(bucket), remaining)
+        if take <= 0:
+            continue
+        chosen = rng.sample(bucket, take)
+        sampled.extend(chosen)
+        remaining -= take
+        leftover = [entry for entry in bucket if entry not in chosen]
+        if leftover:
+            headroom[slug] = leftover
+
+    # Redistribute remainder across archetypes that still have rows.
+    while remaining > 0 and headroom:
+        for slug in list(headroom):
+            if remaining <= 0:
+                break
+            bucket = headroom[slug]
+            if not bucket:
+                headroom.pop(slug)
+                continue
+            entry = bucket.pop(rng.randrange(len(bucket)))
+            sampled.append(entry)
+            remaining -= 1
+            if not bucket:
+                headroom.pop(slug)
+
+    return sampled
+
+
+# ── Local-Blender batch driver ──────────────────────────────────────
+
+
+def _run_local_blender_batch(
+    specs: list[tuple[str, FabricMappingDecision, dict[str, Any]]],
+    archetype_counts: dict[str, int],
+    out_dir: Path,
+    manifest_path: Path,
+) -> int:
+    """Render specs by shelling to local `blender` (no Ray, no S3).
+
+    Used by --local-blender to validate the Phase B Blender builder
+    catalog against a small batch of real Flint buildings on a
+    developer laptop. Output GLBs land in `out_dir`. Manifest still
+    serializes the same shape as the Ray path; `glb_uri` carries a
+    `file://` URI in place of `s3://`.
+    """
+    print("\nLocal Blender mode: shelling to `blender` subprocess.", flush=True)
+    try:
+        from civic_atlas_ingest.scene_foundry import render_spec_locally
+    except ImportError as exc:
+        print(f"scene_foundry import failed: {exc}", file=sys.stderr)
+        return 2
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    print(f"  GLB output directory: {out_dir}", flush=True)
+    primitives_root = REPO_ROOT / "primitives"
+
+    results: dict[str, dict[str, Any]] = {}
+    rendered = 0
+    failed = 0
+    for index, (osm_id, decision, spec_json) in enumerate(specs):
+        if index % 25 == 0:
+            print(
+                f"    {index}/{len(specs)} ({rendered} ok, {failed} failed)",
+                flush=True,
+            )
+        try:
+            result = render_spec_locally(
+                spec_json=json.dumps(spec_json),
+                archetype=decision.phase_b_slug,
+                out_dir=out_dir,
+                primitives_root=primitives_root,
+            )
+        except Exception as exc:  # noqa: BLE001
+            results[osm_id] = {
+                "spec_id": f"fabric:osm:{osm_id}",
+                "archetype_slug": decision.phase_b_slug,
+                "glb_uri": None,
+                "glb_status": "failed",
+                "error": str(exc),
+            }
+            failed += 1
+            continue
+
+        results[osm_id] = {
+            "spec_id": f"fabric:osm:{osm_id}",
+            "archetype_slug": decision.phase_b_slug,
+            "glb_uri": f"file://{result['local_glb_path']}",
+            "content_hash": result["content_hash"],
+            "openbim_uri": (
+                f"file://{result['local_ifc_path']}"
+                if result.get("local_ifc_path")
+                else None
+            ),
+            "openbim_hash": result.get("openbim_hash"),
+            "archetype_hash": result.get("archetype_hash"),
+            "glb_status": "rendered_local",
+        }
+        rendered += 1
+
+    print(
+        f"  done. {rendered} rendered, {failed} failed (out of {len(specs)})",
+        flush=True,
+    )
+
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest = {
+        "phase": "phase_a5_glb_pipeline",
+        "status": "rendered_local",
+        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "spec_count": len(specs),
+        "archetype_distribution": archetype_counts,
+        "local_out_dir": str(out_dir),
+        "buildings": results,
+    }
+    manifest_path.write_text(json.dumps(manifest, indent=2))
+    print(f"  wrote manifest to {manifest_path}", flush=True)
+    return 0 if failed == 0 else 1
 
 
 # ── Per-feature parameter derivation ────────────────────────────────

@@ -50,6 +50,120 @@ from typing import Any
 from .runtime import ensure_ray_initialized, ray
 
 
+def render_spec_locally(
+    spec_json: str,
+    archetype: str,
+    out_dir: Path,
+    primitives_root: Path | None = None,
+) -> dict[str, Any]:
+    """Run the Blender procedural render on the local machine.
+
+    Pure function: no Ray, no S3, no cluster. Shells out to a local
+    `blender` binary via the same procedural `render_spec.py` script
+    that the Ray worker uses. The two paths produce byte-identical
+    GLBs for identical inputs.
+
+    The intended use is `--local-blender` mode in the Phase A.5 batch
+    driver, where we want to validate the Blender builder catalog
+    against a few hundred real Flint buildings without paying for a
+    Ray cluster.
+
+    Args:
+      spec_json: serialized ReconstructionSpec (same shape the Ray
+        task accepts).
+      archetype: Phase B archetype slug (frame-house-with-porch,
+        commercial-brick-two-story, etc.).
+      out_dir: local directory to write the GLB + IFC sidecar. Files
+        land at `out_dir/<spec_id>.glb` and `out_dir/<spec_id>.ifc`,
+        named by spec_id from the spec_json.
+      primitives_root: override for `primitives/` location. Defaults
+        to `CIVIC_ATLAS_PRIMITIVES_ROOT` env or `primitives` in CWD.
+
+    Returns the same shape as `render()` minus the S3 fields:
+      {
+        "local_glb_path": "...",
+        "local_ifc_path": "..." or None,
+        "content_hash": "sha256-...",
+        "archetype": "...",
+        "archetype_hash": "sha256-..." or None,
+        "openbim_hash": "sha256-..." or None,
+      }
+    """
+    primitives_root = primitives_root or Path(
+        os.environ.get("CIVIC_ATLAS_PRIMITIVES_ROOT", "primitives")
+    )
+    archetype_dir = primitives_root / "archetypes" / archetype.replace("-", "_")
+    blend_file = archetype_dir / "archetype.blend"
+    render_script = primitives_root / "scripts" / "render_spec.py"
+
+    if not render_script.exists():
+        raise RuntimeError(f"missing render script: {render_script}")
+
+    spec_dict = json.loads(spec_json)
+    spec_id = spec_dict.get("spec_id", "unknown").replace("/", "_").replace(":", "_")
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_glb_path = out_dir / f"{spec_id}.glb"
+    out_ifc_path = out_dir / f"{spec_id}.ifc"
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+        spec_path = tmp / "spec.json"
+        spec_path.write_text(spec_json)
+
+        cmd = ["blender"]
+        if blend_file.exists():
+            cmd.append(str(blend_file))
+        cmd.extend(
+            [
+                "--background",
+                "--python",
+                str(render_script),
+                "--",
+                "--archetype",
+                archetype,
+                "--spec",
+                str(spec_path),
+                "--out",
+                str(out_glb_path),
+                "--ifc-out",
+                str(out_ifc_path),
+            ]
+        )
+
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)  # noqa: S603
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"blender render failed (exit {result.returncode}):\n"
+                f"stdout: {result.stdout[-2000:]}\n"
+                f"stderr: {result.stderr[-2000:]}"
+            )
+
+        if not out_glb_path.exists():
+            raise RuntimeError("render succeeded but no GLB written")
+
+        content_hash = "sha256-" + hashlib.sha256(out_glb_path.read_bytes()).hexdigest()
+        ifc_hash = (
+            "sha256-" + hashlib.sha256(out_ifc_path.read_bytes()).hexdigest()
+            if out_ifc_path.exists()
+            else None
+        )
+
+    archetype_hashes_path = primitives_root / "archetypes" / "_hashes.json"
+    archetype_hash = None
+    if archetype_hashes_path.exists():
+        archetype_hash = json.loads(archetype_hashes_path.read_text()).get(archetype)
+
+    return {
+        "local_glb_path": str(out_glb_path),
+        "local_ifc_path": str(out_ifc_path) if out_ifc_path.exists() else None,
+        "content_hash": content_hash,
+        "archetype": archetype,
+        "archetype_hash": archetype_hash,
+        "openbim_hash": ifc_hash,
+    }
+
+
 @ray.remote(num_cpus=4, num_gpus=1, memory=8 * 1024 * 1024 * 1024)
 def render(
     spec_json: str,
