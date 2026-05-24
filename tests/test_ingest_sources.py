@@ -65,3 +65,47 @@ def test_regrid_payload_becomes_assessor_records() -> None:
     assert records[0].source_id == "40-12-48-0003"
     assert records[0].coverage.quality == 1.0
     assert "owner" not in records[0].extra["assessor_row"]
+
+
+def test_arcgis_payload_becomes_assessor_records() -> None:
+    payload = {
+        "kind": "arcgis_rest_feature_layer",
+        "capabilities": {
+            "endpoint_url": "https://services5.arcgis.com/example/FeatureServer/0",
+            "layer_name": "Main_COF_Parcel",
+            "geometry_type": "esriGeometryPolygon",
+            "field_names": ["PIDdash", "Full_Prop", "Year_Built", "Cib_Storie", "Use_Type"],
+            "max_record_count": 2000,
+            "supports_pagination": True,
+        },
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {
+                    "PIDdash": "40-01-154-012",
+                    "Full_Prop": "401 W JACKSON AVE, FLINT, MI, 48505",
+                    "Year_Built": 1912,
+                    "Cib_Storie": "2",
+                    "Use_Type": "Commercial",
+                    "Tx_PayName": "Private owner",
+                },
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[[-83.694, 43.02], [-83.693, 43.02], [-83.693, 43.021], [-83.694, 43.02]]],
+                },
+            }
+        ],
+    }
+
+    records = _records_from_assessor_payload(
+        payload,
+        city="flint",
+        source_uri="https://services5.arcgis.com/example/FeatureServer/0",
+        limit=5,
+    )
+
+    assert len(records) == 1
+    assert records[0].source_id == "40-01-154-012"
+    assert records[0].fields["stories"] == 2
+    assert records[0].fields["use_type"] == "Commercial"
+    assert "Tx_PayName" not in records[0].extra["assessor_row"]
